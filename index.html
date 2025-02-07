@@ -15,6 +15,16 @@
       <span id="currentWeekDisplay">Неделя 1</span>
       <button id="nextWeek">→</button>
     </div>
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+        <div class="checkpoint" style="left: 84%" title="16 неделя"></div>
+        <div class="checkpoint" style="left: 89%" title="17 неделя"></div>
+        <div class="checkpoint" style="left: 94%" title="18 неделя"></div>
+        <div class="checkpoint" style="left: 100%" title="19 неделя"></div>
+      </div>
+      <p id="progress-text">Прогресс: 0%</p>
+    </div>
     <table id="schedule-table">
     </table>
   </div>
@@ -23,6 +33,68 @@
     const totalWeeks = 19;
     let currentWeek = 1;
     let scheduleData = {}; // Данные из JSON
+
+    function updateProgressBar() {
+        const progressFill = document.getElementById("progress-fill");
+        const progressText = document.getElementById("progress-text");
+
+        // Проверяем, что currentWeek не превышает totalWeeks
+        const safeCurrentWeek = Math.min(Math.max(currentWeek, 1), totalWeeks);
+        
+        // Вычисляем процент (от 0 до 100)
+        const progressPercentage = ((safeCurrentWeek - 1) / (totalWeeks - 1)) * 100;
+        
+        if (progressFill) {
+            progressFill.style.width = `${progressPercentage}%`;
+            console.log("Progress width:", `${progressPercentage}%`); // Для отладки
+        }
+
+        if (progressText) {
+            progressText.textContent = `Прогресс: ${progressPercentage.toFixed(1)}%`;
+        }
+    }
+
+    // Добавляем вызов updateProgressBar() при загрузке страницы
+    document.addEventListener('DOMContentLoaded', () => {
+        updateProgressBar();
+    });
+
+    const weekMapping = [
+    { week: 1, start: "2025-02-08", end: "2025-02-17" },
+    { week: 2, start: "2025-02-17", end: "2025-02-22" },
+    { week: 3, start: "2025-02-24", end: "2025-02-29" },
+    { week: 4, start: "2025-03-03", end: "2025-03-08" },
+    { week: 5, start: "2025-03-10", end: "2025-03-15" },
+    { week: 6, start: "2025-03-17", end: "2025-03-22" },
+    { week: 7, start: "2025-03-24", end: "2025-03-29" },
+    { week: 8, start: "2025-03-31", end: "2025-04-05" },
+    { week: 9, start: "2025-04-07", end: "2025-04-12" },
+    { week: 10, start: "2025-04-14", end: "2025-04-19" },
+    { week: 11, start: "2025-04-21", end: "2025-04-26" },
+    { week: 12, start: "2025-04-28", end: "2025-05-03" },
+    { week: 13, start: "2025-05-05", end: "2025-05-10" },
+    { week: 14, start: "2025-05-12", end: "2025-05-17" },
+    { week: 15, start: "2025-05-19", end: "2025-05-24" },
+    { week: 16, start: "2025-05-26", end: "2025-05-31" },
+    { week: 17, start: "2025-06-02", end: "2025-06-07" },
+    { week: 18, start: "2025-06-09", end: "2025-06-14" },
+    { week: 19, start: "2025-06-16", end: "2025-06-21" }
+];
+
+function getCurrentWeek() {
+    const today = new Date();
+    for (const period of weekMapping) {
+        const startDate = new Date(period.start);
+        const endDate = new Date(period.end);
+        if (today >= startDate && today <= endDate) {
+            return period.week;
+        }
+    }
+    return 1; // Если дата не найдена, устанавливаем 1-ю неделю
+}
+
+// Устанавливаем текущую неделю при загрузке
+currentWeek = getCurrentWeek();
 
     async function loadSchedule() {
       try {
@@ -82,12 +154,15 @@
       document.getElementById("currentWeekDisplay").textContent = `Неделя ${week}`;
       document.getElementById("prevWeek").disabled = (week === 1);
       document.getElementById("nextWeek").disabled = (week === totalWeeks);
+      
+      updateProgressBar(); // Добавляем вызов функции здесь
     }
 
     document.getElementById("prevWeek").addEventListener("click", () => {
       if (currentWeek > 1) {
         currentWeek--;
         renderTable(currentWeek);
+        updateProgressBar();
       }
     });
 
@@ -95,6 +170,7 @@
       if (currentWeek < totalWeeks) {
         currentWeek++;
         renderTable(currentWeek);
+        updateProgressBar();
       }
     });
 
