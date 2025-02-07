@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Расписание учебы</title>
+  <!-- Подключение отдельного CSS файла -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Расписание</h1>
+    <div class="week-navigation">
+      <button id="prevWeek">←</button>
+      <span id="currentWeekDisplay">Неделя 1</span>
+      <button id="nextWeek">→</button>
+    </div>
+    <table id="schedule-table">
+    </table>
+  </div>
+
+  <script>
+    const totalWeeks = 19;
+    let currentWeek = 1;
+    let scheduleData = {}; // Данные из JSON
+
+    async function loadSchedule() {
+      try {
+        const response = await fetch("schedule.json");
+        scheduleData = await response.json();
+        renderTable(currentWeek);
+      } catch (error) {
+        console.error("Ошибка загрузки расписания:", error);
+      }
+    }
+
+    function renderTable(week) {
+      const table = document.getElementById("schedule-table");
+      table.innerHTML = ""; // Очищаем таблицу
+
+      if (!scheduleData[week]) {
+        table.innerHTML = "<tr><td>Нет данных для этой недели</td></tr>";
+        return;
+      }
+
+      // Создаем структуру таблицы
+      const thead = document.createElement("thead");
+      const tbody = document.createElement("tbody");
+      table.appendChild(thead);
+      table.appendChild(tbody);
+
+      Object.keys(scheduleData[week]).forEach(day => {
+        // Заголовок дня
+        const dayRow = document.createElement("tr");
+        const dayCell = document.createElement("td");
+        dayCell.classList.add("day-header");
+        dayCell.colSpan = "2";
+        dayCell.textContent = day;
+        dayRow.appendChild(dayCell);
+        tbody.appendChild(dayRow);
+
+        // Уроки дня
+        scheduleData[week][day].forEach(lessonText => {
+          const lessonRow = document.createElement("tr");
+          const [time, subject] = lessonText.split(" | ");
+          
+          const timeCell = document.createElement("td");
+          timeCell.classList.add("lesson-time");
+          timeCell.textContent = time;
+          
+          const subjectCell = document.createElement("td");
+          subjectCell.classList.add("lesson-subject");
+          subjectCell.textContent = subject;
+          
+          lessonRow.appendChild(timeCell);
+          lessonRow.appendChild(subjectCell);
+          tbody.appendChild(lessonRow);
+        });
+      });
+
+      // Обновление отображения текущей недели
+      document.getElementById("currentWeekDisplay").textContent = `Неделя ${week}`;
+      document.getElementById("prevWeek").disabled = (week === 1);
+      document.getElementById("nextWeek").disabled = (week === totalWeeks);
+    }
+
+    document.getElementById("prevWeek").addEventListener("click", () => {
+      if (currentWeek > 1) {
+        currentWeek--;
+        renderTable(currentWeek);
+      }
+    });
+
+    document.getElementById("nextWeek").addEventListener("click", () => {
+      if (currentWeek < totalWeeks) {
+        currentWeek++;
+        renderTable(currentWeek);
+      }
+    });
+
+    // Загрузка расписания при запуске
+    loadSchedule();
+  </script>
+</body>
+</html>

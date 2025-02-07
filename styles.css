@@ -1,0 +1,104 @@
+/* styles.css */
+
+/* Минималистичный дизайн */
+body {
+    font-family:system-ui, sans-serif;
+    background-color: #f5f5f5;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+  }
+  
+  .container {
+    max-width: 800px;
+    margin: 0 auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  }
+  
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+  
+  .week-navigation {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  
+  .week-navigation button {
+    padding: 8px 16px;
+    border: none;
+    background-color: #007bff;
+    color: #fff;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  
+  .week-navigation button:disabled {
+    background-color: #aaa;
+    cursor: not-allowed;
+  }
+  
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 20px 0;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e0e0e0;
+  }
+  
+  th, td {
+    border: none;
+    border-bottom: 1px solid #e0e0e0;
+    border-right: 1px solid #e0e0e0;
+    line-height: 2
+  }
+  
+  th:last-child, td:last-child {
+    border-right: none;
+  }
+  
+  tr:last-child td {
+    border-bottom: none;
+  }
+  
+  th {
+    background-color: #f4f4f4;
+    font-weight: bold;
+  }
+  
+  .day-header {
+    background-color: #e0e0e0;
+    font-weight: bold;
+    text-align: center;
+  }
+  
+  .lesson-time {
+    white-space: nowrap;
+    width: 150px;
+    text-align: center;
+  }
+  
+  /* Медиа-запрос для уменьшения ширины левого столбца на экранах телефона */
+  @media (max-width: 600px) {
+    .lesson-time {
+        width: 100px; /* Уменьшенная ширина для мобильных устройств */
+    }
+  }
+  
+  .lesson-subject {
+    font-weight: normal;
+    text-align: center;
+  }
+  
+  tr:hover {
+    background-color: #f8f8f8;
+  }
