@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Расписание учебы</title>
-  <!-- Подключение отдельного CSS файла -->
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
@@ -62,23 +61,23 @@
     const weekMapping = [
     { week: 1, start: "2025-02-08", end: "2025-02-17" },
     { week: 2, start: "2025-02-17", end: "2025-02-22" },
-    { week: 3, start: "2025-02-24", end: "2025-02-29" },
-    { week: 4, start: "2025-03-03", end: "2025-03-08" },
-    { week: 5, start: "2025-03-10", end: "2025-03-15" },
-    { week: 6, start: "2025-03-17", end: "2025-03-22" },
-    { week: 7, start: "2025-03-24", end: "2025-03-29" },
-    { week: 8, start: "2025-03-31", end: "2025-04-05" },
-    { week: 9, start: "2025-04-07", end: "2025-04-12" },
-    { week: 10, start: "2025-04-14", end: "2025-04-19" },
-    { week: 11, start: "2025-04-21", end: "2025-04-26" },
-    { week: 12, start: "2025-04-28", end: "2025-05-03" },
-    { week: 13, start: "2025-05-05", end: "2025-05-10" },
-    { week: 14, start: "2025-05-12", end: "2025-05-17" },
-    { week: 15, start: "2025-05-19", end: "2025-05-24" },
-    { week: 16, start: "2025-05-26", end: "2025-05-31" },
-    { week: 17, start: "2025-06-02", end: "2025-06-07" },
-    { week: 18, start: "2025-06-09", end: "2025-06-14" },
-    { week: 19, start: "2025-06-16", end: "2025-06-21" }
+    { week: 3, start: "2025-02-23", end: "2025-02-29" },
+    { week: 4, start: "2025-03-29", end: "2025-03-08" },
+    { week: 5, start: "2025-03-09", end: "2025-03-15" },
+    { week: 6, start: "2025-03-16", end: "2025-03-22" },
+    { week: 7, start: "2025-03-23", end: "2025-03-29" },
+    { week: 8, start: "2025-03-28", end: "2025-04-05" },
+    { week: 9, start: "2025-04-06", end: "2025-04-12" },
+    { week: 10, start: "2025-04-13", end: "2025-04-19" },
+    { week: 11, start: "2025-04-20", end: "2025-04-26" },
+    { week: 12, start: "2025-04-27", end: "2025-05-03" },
+    { week: 13, start: "2025-05-04", end: "2025-05-10" },
+    { week: 14, start: "2025-05-11", end: "2025-05-17" },
+    { week: 15, start: "2025-05-18", end: "2025-05-24" },
+    { week: 16, start: "2025-05-25", end: "2025-05-31" },
+    { week: 17, start: "2025-06-01", end: "2025-06-07" },
+    { week: 18, start: "2025-06-08", end: "2025-06-14" },
+    { week: 19, start: "2025-06-15", end: "2025-06-21" }
 ];
 
 function getCurrentWeek() {
@@ -90,7 +89,7 @@ function getCurrentWeek() {
             return period.week;
         }
     }
-    return 1; // Если дата не найдена, устанавливаем 1-ю неделю
+    return 1;
 }
 
 // Устанавливаем текущую неделю при загрузке
