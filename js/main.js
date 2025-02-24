@@ -1,37 +1,13 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Расписание учебы</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
-  <div class="container">
-    <h1>Расписание</h1>
-    <div class="week-navigation">
-      <button id="prevWeek">←</button>
-      <span id="currentWeekDisplay">Неделя 1</span>
-      <button id="nextWeek">→</button>
-    </div>
-    <div class="progress-container">
-      <div class="progress-bar">
-        <div class="progress-fill" id="progress-fill"></div>
-        <div class="checkpoint" style="left: 84%" title="16 неделя"></div>
-        <div class="checkpoint" style="left: 89%" title="17 неделя"></div>
-        <div class="checkpoint" style="left: 94%" title="18 неделя"></div>
-        <div class="checkpoint" style="left: 100%" title="19 неделя"></div>
-      </div>
-      <p id="progress-text">Прогресс: 0%</p>
-    </div>
-    <table id="schedule-table">
-    </table>
-  </div>
-
-  <script>
+document.addEventListener('DOMContentLoaded', () => {
+    const flaskData = document.getElementById('flask-data');
+    const editPassword = flaskData.dataset.editPassword;
+    const saveUrl = flaskData.dataset.saveUrl;
+    const scheduleUrl = flaskData.dataset.scheduleUrl;
     const totalWeeks = 19;
     let currentWeek = 1;
-    let scheduleData = {}; // Данные из JSON
+    let scheduleData = {};
+    let isEditMode = false;
+    const EDIT_PASSWORD = flaskData.dataset.editPassword;
 
     function updateProgressBar() {
         const progressFill = document.getElementById("progress-fill");
@@ -40,7 +16,6 @@
         // Проверяем, что currentWeek не превышает totalWeeks
         const safeCurrentWeek = Math.min(Math.max(currentWeek, 1), totalWeeks);
         
-        // Вычисляем процент (от 0 до 100)
         const progressPercentage = ((safeCurrentWeek - 1) / (totalWeeks - 1)) * 100;
         
         if (progressFill) {
@@ -53,7 +28,6 @@
         }
     }
 
-    // Добавляем вызов updateProgressBar() при загрузке страницы
     document.addEventListener('DOMContentLoaded', () => {
         updateProgressBar();
     });
@@ -64,7 +38,7 @@
     { week: 3, start: "2025-02-23", end: "2025-02-29" },
     { week: 4, start: "2025-03-29", end: "2025-03-08" },
     { week: 5, start: "2025-03-09", end: "2025-03-15" },
-    { week: 6, start: "2025-03-16", end: "2025-03-22" },
+    { week: 6, start: "2025-03-15", end: "2025-03-22" },
     { week: 7, start: "2025-03-23", end: "2025-03-29" },
     { week: 8, start: "2025-03-28", end: "2025-04-05" },
     { week: 9, start: "2025-04-06", end: "2025-04-12" },
@@ -97,11 +71,21 @@ currentWeek = getCurrentWeek();
 
     async function loadSchedule() {
       try {
-        const response = await fetch("schedule.json");
+        const response = await fetch(scheduleUrl);
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        
         scheduleData = await response.json();
+        console.log('Загруженные данные:', scheduleData); 
+        
+        if (!scheduleData[currentWeek]) {
+          console.warn(`Нет данных для недели ${currentWeek}`);
+        }
+        
         renderTable(currentWeek);
       } catch (error) {
         console.error("Ошибка загрузки расписания:", error);
+        const table = document.getElementById("schedule-table");
+        table.innerHTML = "<tr><td>Ошибка загрузки данных</td></tr>";
       }
     }
 
@@ -109,18 +93,20 @@ currentWeek = getCurrentWeek();
       const table = document.getElementById("schedule-table");
       table.innerHTML = ""; // Очищаем таблицу
 
-      if (!scheduleData[week]) {
+      if (!scheduleData || !scheduleData[week]) {
         table.innerHTML = "<tr><td>Нет данных для этой недели</td></tr>";
+        console.error('Данные для недели', week, 'не найдены');
         return;
       }
-
-      // Создаем структуру таблицы
-      const thead = document.createElement("thead");
+      // Создаем тело таблицы
       const tbody = document.createElement("tbody");
-      table.appendChild(thead);
       table.appendChild(tbody);
 
-      Object.keys(scheduleData[week]).forEach(day => {
+      const daysOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
+      
+      daysOrder.forEach(day => {
+        if (!scheduleData[week][day]) return;
+
         // Заголовок дня
         const dayRow = document.createElement("tr");
         const dayCell = document.createElement("td");
@@ -131,9 +117,10 @@ currentWeek = getCurrentWeek();
         tbody.appendChild(dayRow);
 
         // Уроки дня
-        scheduleData[week][day].forEach(lessonText => {
-          const lessonRow = document.createElement("tr");
+        scheduleData[week][day].forEach((lessonText, index) => {
           const [time, subject] = lessonText.split(" | ");
+          
+          const lessonRow = document.createElement("tr");
           
           const timeCell = document.createElement("td");
           timeCell.classList.add("lesson-time");
@@ -141,8 +128,16 @@ currentWeek = getCurrentWeek();
           
           const subjectCell = document.createElement("td");
           subjectCell.classList.add("lesson-subject");
-          subjectCell.textContent = subject;
-          
+          subjectCell.contentEditable = isEditMode;
+          subjectCell.textContent = subject || "";
+
+          if (isEditMode) {
+            subjectCell.style.backgroundColor = "#fff3cd";
+            subjectCell.addEventListener("input", (e) => {
+              scheduleData[week][day][index] = `${time} | ${e.target.textContent}`;
+            });
+          }
+
           lessonRow.appendChild(timeCell);
           lessonRow.appendChild(subjectCell);
           tbody.appendChild(lessonRow);
@@ -154,7 +149,7 @@ currentWeek = getCurrentWeek();
       document.getElementById("prevWeek").disabled = (week === 1);
       document.getElementById("nextWeek").disabled = (week === totalWeeks);
       
-      updateProgressBar(); // Добавляем вызов функции здесь
+      updateProgressBar(); 
     }
 
     document.getElementById("prevWeek").addEventListener("click", () => {
@@ -173,8 +168,57 @@ currentWeek = getCurrentWeek();
       }
     });
 
-    // Загрузка расписания при запуске
+    // Добавляем обработчик для кнопки логина
+    document.getElementById("loginBtn").addEventListener("click", function() {
+      console.log('Текущий режим редактирования:', isEditMode);
+      
+      if (!isEditMode) {
+        const password = prompt("Введите пароль для редактирования:");
+        console.log('Введенный пароль:', password);
+        
+        if (password === EDIT_PASSWORD) {
+          console.log('Пароль верный!');
+          isEditMode = true;
+          this.textContent = "Выйти";
+          document.getElementById("editNotice").style.display = "block";
+          document.getElementById("saveBtn").style.display = "block";
+          renderTable(currentWeek);
+        } else {
+          alert("Неверный пароль!");
+        }
+      } else {
+        isEditMode = false;
+        this.textContent = "Логин";
+        document.getElementById("editNotice").style.display = "none";
+        document.getElementById("saveBtn").style.display = "none";
+        renderTable(currentWeek);
+      }
+    });
+
+    // Добавляем обработчик сохранения
+    document.getElementById("saveBtn").addEventListener("click", async function() {
+      try {
+        const response = await fetch("/save", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(scheduleData),
+        });
+        
+        if (response.ok) {
+          alert("Изменения успешно сохранены!");
+        } else {
+          alert("Ошибка при сохранении!");
+        }
+      } catch (error) {
+        console.error("Ошибка:", error);
+        alert("Сервер недоступен!");
+      }
+    });
+
+    // Добавить проверку полученного пароля
+    console.log('Пароль из Flask:', EDIT_PASSWORD);
+   
     loadSchedule();
-  </script>
-</body>
-</html>
+});
