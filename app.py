@@ -18,11 +18,19 @@ def serve_schedule():
 
 @app.route('/save', methods=['POST'])
 def save_schedule():
-    data = request.json
-    # Здесь нужно добавить сохранение в файл
-    with open('static/schedule.json', 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-    return jsonify({"status": "success"})
+    try:
+        data = request.json
+        # Получаем путь к файлу относительно корня проекта
+        file_path = os.path.join(app.root_path, 'static', 'schedule.json')
+        
+        with open(file_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+            
+        return jsonify({"status": "success"})
+    
+    except Exception as e:
+        print(f"Error saving schedule: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5228, debug=True)
