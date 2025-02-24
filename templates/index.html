@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Расписание учебы</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+  <script defer src="{{ url_for('static', filename='js/main.js') }}">   
+  </script>
+</head>
+<body>
+  <div class="container">
+    <div id="editNotice" style="display: none; color: red; margin: 10px 0;">
+      Режим редактирования активирован
+    </div>
+    <h1>Расписание</h1>
+    <button id="loginBtn" class="login-btn">Логин</button>
+    <button id="saveBtn" class="save-btn" style="display: none;">Сохранить</button>
+    <div class="week-navigation">
+      <button id="prevWeek">←</button>
+      <span id="currentWeekDisplay">Неделя 1</span>
+      <button id="nextWeek">→</button>
+    </div>
+    <div class="progress-container">
+      <div class="progress-bar">
+        <div class="progress-fill" id="progress-fill"></div>
+        <div class="checkpoint" style="left: 84%" title="16 неделя"></div>
+        <div class="checkpoint" style="left: 89%" title="17 неделя"></div>
+        <div class="checkpoint" style="left: 94%" title="18 неделя"></div>
+        <div class="checkpoint" style="left: 100%" title="19 неделя"></div>
+      </div>
+      <p id="progress-text">Прогресс: 0%</p>
+    </div>
+    <table id="schedule-table">
+    </table>
+  </div>
+
+  <!-- Добавим блок для передачи переменных из Flask -->
+  <div id="flask-data" 
+       data-edit-password="{{ edit_password }}"
+       data-save-url="{{ url_for('save_schedule') }}"
+       data-schedule-url="{{ url_for('serve_schedule') }}"
+       style="display: none;">
+  </div>
+</body>
+</html>
