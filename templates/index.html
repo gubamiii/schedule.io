@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <div id="editNotice" style="display: none; color: red; margin: 10px 0; text-align: center;">
+    Режим редактирования активирован
+  </div>
   <title>Расписание учебы</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
   <script defer src="{{ url_for('static', filename='js/main.js') }}">   
@@ -10,12 +13,8 @@
 </head>
 <body>
   <div class="container">
-    <div id="editNotice" style="display: none; color: red; margin: 10px 0;">
-      Режим редактирования активирован
-    </div>
     <h1>Расписание</h1>
     <button id="loginBtn" class="login-btn">Логин</button>
-    <button id="saveBtn" class="save-btn" style="display: none;">Сохранить</button>
     <div class="week-navigation">
       <button id="prevWeek">←</button>
       <span id="currentWeekDisplay">Неделя 1</span>
@@ -31,6 +30,7 @@
       </div>
       <p id="progress-text">Прогресс: 0%</p>
     </div>
+    <button id="saveBtn" class="save-btn" style="display: none;">Сохранить</button>
     <table id="schedule-table">
     </table>
   </div>
