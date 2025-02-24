@@ -9,7 +9,10 @@
     {
       "src": "/(.*)",
       "dest": "app.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/api/index.py"
     }
-  ],
-  "rewrites": [{ "source": "/(.*)", "destination": "/api/index.py" }]
+  ]
 }
