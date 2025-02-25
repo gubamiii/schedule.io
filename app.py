@@ -38,16 +38,9 @@ def handle_blob_upload():
         if "url" not in auth_data:
             return jsonify({"error": "Vercel API error", "response": auth_data}), 500
 
-        return jsonify(auth_data)
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
         return jsonify(auth_data)  # Возвращаем ссылку для загрузки
-
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5228, debug=True)
