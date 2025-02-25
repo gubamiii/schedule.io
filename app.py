@@ -14,33 +14,58 @@ EDIT_PASSWORD = os.getenv("EDIT_PASSWORD")
 
 @app.route("/")
 def index():
-    return render_template("index.html", edit_password=os.getenv("EDIT_PASSWORD"))
+    return render_template("index.html")
 
 @app.route("/api/blob-upload", methods=["POST"])
 def handle_blob_upload():
     try:
-        auth_response = requests.post(
-            "https://api.vercel.com/v2/blob/upload",
-            headers={
-                "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
-                "Content-Type": "application/json",
-            },
+        # Get the data from the request
+        data = request.json.get("data")
+        
+        # Convert data to JSON string and encode to bytes
+        json_data = json.dumps(data).encode()
+        
+        # Create a multipart form-data request to Vercel Blob API
+        headers = {
+            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
+        }
+        
+        # First, get a presigned URL
+        presigned_url_response = requests.post(
+            "https://blob.vercel-storage.com/post-url",
+            headers=headers,
             json={
+                "size": len(json_data),
+                "contentType": "application/json",
                 "storeId": BLOB_STORE_ID,
-                "contentLength": request.json.get("contentLength"),
-                "contentType": request.json.get("contentType"),
-                "access": "public"  # Добавлено согласно документации
-            },
+                "pathname": "schedule.json",
+                "access": "public",
+                "addRandomSuffix": False
+            }
         )
-
-        auth_data = auth_response.json()
-        print("Vercel Response:", auth_data)
-
-        if "url" not in auth_data:
-            return jsonify({"error": "Vercel API error", "response": auth_data}), 500
-
-        return jsonify(auth_data)  # Возвращаем ссылку для загрузки
-
+        
+        presigned_data = presigned_url_response.json()
+        
+        if "url" not in presigned_data:
+            return jsonify({"error": "Failed to get presigned URL", "response": presigned_data}), 500
+        
+        # Now upload the file to the presigned URL
+        upload_response = requests.put(
+            presigned_data["url"],
+            data=json_data,
+            headers={
+                "Content-Type": "application/json"
+            }
+        )
+        
+        if upload_response.status_code != 200:
+            return jsonify({"error": "Failed to upload file", "status": upload_response.status_code}), 500
+        
+        # Return the URL where the file can be accessed
+        return jsonify({
+            "url": presigned_data["url"],
+            "downloadUrl": f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
+        })
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 

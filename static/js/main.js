@@ -204,36 +204,21 @@ currentWeek = getCurrentWeek();
 
     document.getElementById("saveBtn").addEventListener("click", async function () {
       try {
-        // Создаем Blob из данных расписания
-        const scheduleBlob = new Blob([JSON.stringify(scheduleData)], {
-          type: "application/json",
-        });
-    
-        // Получаем URL для загрузки файла
-        const authResponse = await fetch("/api/blob-upload", {
+        // Send the schedule data directly to the server
+        const response = await fetch("/api/blob-upload", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            contentLength: scheduleBlob.size, // Размер файла
-            contentType: "application/json",  // MIME-тип
+            data: scheduleData
           }),
         });
-    
-        const authData = await authResponse.json();
-        if (!authData.url) throw new Error("Ошибка получения URL загрузки");
-    
-        // Загружаем файл в Vercel Blob
-        const uploadResponse = await fetch(authData.url, {
-          method: "PUT",
-          body: scheduleBlob,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-    
-        if (!uploadResponse.ok) throw new Error("Ошибка при загрузке файла");
-    
-        alert(`Файл успешно сохранен! URL: ${authData.downloadUrl}`);
+
+        const result = await response.json();
+        if (result.error) {
+          throw new Error(result.error);
+        }
+
+        alert(`Файл успешно сохранен! URL: ${result.downloadUrl}`);
       } catch (error) {
         console.error("Ошибка:", error);
         alert("Ошибка при сохранении!");
