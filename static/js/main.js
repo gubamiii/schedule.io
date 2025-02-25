@@ -198,25 +198,22 @@ currentWeek = getCurrentWeek();
     // Добавляем обработчик сохранения
     document.getElementById("saveBtn").addEventListener("click", async function() {
       try {
-        // Создаем Blob из данных расписания
-        const scheduleBlob = new Blob([JSON.stringify(scheduleData)], { 
-          type: "application/json" 
+        const response = await fetch("/save", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(scheduleData),
         });
-
-        // Загружаем в Vercel Blob
-        const { url } = await upload(
-          `schedule-${Date.now()}.json`,
-          scheduleBlob,
-          {
-            access: 'public',
-            handleUploadUrl: '/api/blob-upload',
-          }
-        );
-
-        alert(`Файл успешно сохранен! URL: ${url}`);
+        
+        if (response.ok) {
+          alert("Изменения успешно сохранены!");
+        } else {
+          alert("Ошибка при сохранении!");
+        }
       } catch (error) {
         console.error("Ошибка:", error);
-        alert("Ошибка при сохранении!");
+        alert("Сервер недоступен!");
       }
     });
 
