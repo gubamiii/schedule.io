@@ -195,33 +195,43 @@ currentWeek = getCurrentWeek();
       }
     });
 
-    // Добавляем обработчик сохранения
-    document.getElementById("saveBtn").addEventListener("click", async function() {
+    document.getElementById("saveBtn").addEventListener("click", async function () {
       try {
         // Создаем Blob из данных расписания
-        const scheduleBlob = new Blob([JSON.stringify(scheduleData)], { 
-          type: "application/json" 
+        const scheduleBlob = new Blob([JSON.stringify(scheduleData)], {
+          type: "application/json",
         });
-
-        // Загружаем в Vercel Blob
-        const { url } = await upload(
-          `schedule-${Date.now()}.json`,
-          scheduleBlob,
-          {
-            access: 'public',
-            handleUploadUrl: '/api/blob-upload',
-          }
-        );
-
-        alert(`Файл успешно сохранен! URL: ${url}`);
+    
+        // Получаем URL для загрузки файла
+        const authResponse = await fetch("/api/blob-upload", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contentLength: scheduleBlob.size, // Размер файла
+            contentType: "application/json",  // MIME-тип
+          }),
+        });
+    
+        const authData = await authResponse.json();
+        if (!authData.url) throw new Error("Ошибка получения URL загрузки");
+    
+        // Загружаем файл в Vercel Blob
+        const uploadResponse = await fetch(authData.url, {
+          method: "PUT",
+          body: scheduleBlob,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+    
+        if (!uploadResponse.ok) throw new Error("Ошибка при загрузке файла");
+    
+        alert(`Файл успешно сохранен! URL: ${authData.downloadUrl}`);
       } catch (error) {
         console.error("Ошибка:", error);
         alert("Ошибка при сохранении!");
       }
     });
-
-    // Добавить проверку полученного пароля
-    console.log('Пароль из Flask:', EDIT_PASSWORD);
-   
+       
     loadSchedule();
 });

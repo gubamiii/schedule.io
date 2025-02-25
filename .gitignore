@@ -15,3 +15,5 @@ build/
 *.sublime-project
 *.bak
 *.swp
+.vercel
+.env*.local
