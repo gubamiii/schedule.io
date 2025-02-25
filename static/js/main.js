@@ -7,7 +7,6 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentWeek = 1;
     let scheduleData = {};
     let isEditMode = false;
-    const EDIT_PASSWORD = flaskData.dataset.editPassword;
 
     function updateProgressBar() {
         const progressFill = document.getElementById("progress-fill");
@@ -169,22 +168,30 @@ currentWeek = getCurrentWeek();
     });
 
     // Добавляем обработчик для кнопки логина
-    document.getElementById("loginBtn").addEventListener("click", function() {
+    document.getElementById("loginBtn").addEventListener("click", async function() {
       console.log('Текущий режим редактирования:', isEditMode);
       
       if (!isEditMode) {
         const password = prompt("Введите пароль для редактирования:");
         console.log('Введенный пароль:', password);
         
-        if (password === EDIT_PASSWORD) {
-          console.log('Пароль верный!');
-          isEditMode = true;
-          this.textContent = "Выйти";
-          document.getElementById("editNotice").style.display = "block";
-          document.getElementById("saveBtn").style.display = "block";
-          renderTable(currentWeek);
+        // Send the password to the server for verification
+        const response = await fetch('/api/verify-password', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ password })
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            console.log('Пароль верный!');
+            isEditMode = true;
+            this.textContent = "Выйти";
+            document.getElementById("editNotice").style.display = "block";
+            document.getElementById("saveBtn").style.display = "block";
+            renderTable(currentWeek);
         } else {
-          alert("Неверный пароль!");
+            alert("Неверный пароль!");
         }
       } else {
         isEditMode = false;
