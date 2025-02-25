@@ -18,7 +18,6 @@ def index():
 @app.route("/api/blob-upload", methods=["POST"])
 def handle_blob_upload():
     try:
-        # Генерация URL для загрузки
         auth_response = requests.post(
             "https://api.vercel.com/v2/blob/upload",
             headers={
@@ -27,17 +26,22 @@ def handle_blob_upload():
             },
             json={
                 "storeId": BLOB_STORE_ID,
-                "contentLength": request.json.get("contentLength"),  # Длина файла в байтах
-                "contentType": request.json.get("contentType"),  # MIME-тип (например, "application/json")
+                "contentLength": request.json.get("contentLength"),
+                "contentType": request.json.get("contentType"),
+                "access": "public"  # Добавлено согласно документации
             },
         )
 
         auth_data = auth_response.json()
-        print("Vercel Response:", auth_data)  # Лог для отладки
+        print("Vercel Response:", auth_data)
 
-        # Проверяем, есть ли ошибка в ответе
         if "url" not in auth_data:
             return jsonify({"error": "Vercel API error", "response": auth_data}), 500
+
+        return jsonify(auth_data)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
         return jsonify(auth_data)  # Возвращаем ссылку для загрузки
 
