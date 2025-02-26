@@ -88,7 +88,7 @@ def handle_blob_upload():
 
 @app.route('/schedule.json')
 def get_schedule():
-    """Получает расписание только из Vercel Blob Storage"""
+    """Получает расписание из Vercel Blob Storage"""
     try:
         logger.info("Fetching schedule from Vercel Blob Storage")
         
@@ -106,14 +106,44 @@ def get_schedule():
             "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
         }
         
-        blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
+        # Сначала попробуем получить список файлов в хранилище
+        try:
+            list_response = requests.get(
+                f"https://blob.vercel-storage.com/list?storeId={BLOB_STORE_ID}",
+                headers=headers,
+                timeout=10
+            )
+            
+            if list_response.status_code == 200:
+                blobs_data = list_response.json()
+                schedule_blobs = [blob for blob in blobs_data.get("blobs", []) 
+                                 if blob.get("pathname", "").startswith("schedule")]
+                
+                if schedule_blobs:
+                    # Берем первый найденный файл расписания
+                    schedule_blob = schedule_blobs[0]
+                    blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/{schedule_blob['pathname']}"
+                    logger.info(f"Found schedule file: {schedule_blob['pathname']}")
+                else:
+                    # Если не нашли файл с расписанием, используем стандартный путь
+                    blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
+                    logger.warning("No schedule files found in listing, trying default path")
+            else:
+                # Если не удалось получить список, используем стандартный путь
+                blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
+                logger.warning(f"Failed to list blobs: {list_response.status_code}, trying default path")
+        except Exception as e:
+            # В случае ошибки при получении списка, используем стандартный путь
+            blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
+            logger.error(f"Error listing blobs: {str(e)}, trying default path")
+        
         logger.info(f"Blob URL: {blob_url}")
         
         try:
             response = requests.get(
                 blob_url,
                 headers=headers,
-                timeout=10  # Добавляем таймаут
+                timeout=10
             )
             
             logger.info(f"Response status: {response.status_code}")
