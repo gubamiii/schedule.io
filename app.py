@@ -88,5 +88,27 @@ def verify_password():
     else:
         return jsonify({"success": False}), 403
 
+@app.route('/api/save-schedule', methods=['POST'])
+def save_schedule():
+    try:
+        data = request.get_json()
+        
+        # Verify the edit password
+        password = data.get('password')
+        if password != EDIT_PASSWORD:
+            return jsonify({"error": "Invalid password"}), 403
+            
+        schedule_data = data.get('schedule')
+        if not schedule_data:
+            return jsonify({"error": "No schedule data provided"}), 400
+            
+        # Save to local file
+        with open('static/schedule.json', 'w', encoding='utf-8') as f:
+            json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+            
+        return jsonify({"success": True}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5228, debug=True)
