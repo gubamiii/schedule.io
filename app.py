@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, redirect
 import os
 from dotenv import load_dotenv
 import json
@@ -88,96 +88,21 @@ def handle_blob_upload():
 
 @app.route('/schedule.json')
 def get_schedule():
-    """Получает расписание из Vercel Blob Storage"""
+    """Перенаправляет на публичный URL расписания в Vercel Blob Storage"""
     try:
-        logger.info("Fetching schedule from Vercel Blob Storage")
+        logger.info("Redirecting to public Blob Storage URL")
         
         # Проверяем, что переменные окружения установлены
-        if not BLOB_READ_WRITE_TOKEN:
-            logger.error("BLOB_READ_WRITE_TOKEN is not set")
-            return jsonify({"error": "Storage configuration error"}), 500
-            
         if not BLOB_STORE_ID:
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
         
-        # Get the file from Vercel Blob Storage
-        headers = {
-            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
-        }
+        # Прямое перенаправление на публичный URL
+        public_url = f"https://{BLOB_STORE_ID}.public.blob.vercel-storage.com/schedule.json"
+        logger.info(f"Redirecting to: {public_url}")
         
-        # Сначала попробуем получить список файлов в хранилище
-        try:
-            list_response = requests.get(
-                f"https://blob.vercel-storage.com/list?storeId={BLOB_STORE_ID}",
-                headers=headers,
-                timeout=10
-            )
-            
-            if list_response.status_code == 200:
-                blobs_data = list_response.json()
-                schedule_blobs = [blob for blob in blobs_data.get("blobs", []) 
-                                 if blob.get("pathname", "").startswith("schedule")]
-                
-                if schedule_blobs:
-                    # Берем первый найденный файл расписания
-                    schedule_blob = schedule_blobs[0]
-                    blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/{schedule_blob['pathname']}"
-                    logger.info(f"Found schedule file: {schedule_blob['pathname']}")
-                else:
-                    # Если не нашли файл с расписанием, используем стандартный путь
-                    blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
-                    logger.warning("No schedule files found in listing, trying default path")
-            else:
-                # Если не удалось получить список, используем стандартный путь
-                blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
-                logger.warning(f"Failed to list blobs: {list_response.status_code}, trying default path")
-        except Exception as e:
-            # В случае ошибки при получении списка, используем стандартный путь
-            blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
-            logger.error(f"Error listing blobs: {str(e)}, trying default path")
-        
-        logger.info(f"Blob URL: {blob_url}")
-        
-        try:
-            response = requests.get(
-                blob_url,
-                headers=headers,
-                timeout=10
-            )
-            
-            logger.info(f"Response status: {response.status_code}")
-            
-            if response.status_code == 404:
-                logger.warning("Schedule file not found in Blob Storage")
-                return jsonify({"error": "Schedule not found"}), 404
-            
-            if response.status_code != 200:
-                logger.error(f"Error fetching schedule: {response.text}")
-                logger.error(f"Response headers: {dict(response.headers)}")
-                return jsonify({"error": f"Failed to fetch schedule: {response.status_code}"}), 500
-            
-            # Parse the JSON from the response
-            try:
-                data = response.json()
-                logger.info(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
-                
-                # Если данные пусты, возвращаем ошибку
-                if not data or (isinstance(data, dict) and len(data) == 0):
-                    logger.warning("Empty schedule data received")
-                    return jsonify({"error": "Empty schedule data"}), 500
-                    
-                # Return the data directly
-                return jsonify(data)
-                
-            except Exception as e:
-                logger.error(f"Error parsing JSON: {str(e)}")
-                logger.error(f"Response content: {response.text[:200]}...")
-                return jsonify({"error": f"Invalid JSON format: {str(e)}"}), 500
-                
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request exception: {str(e)}")
-            return jsonify({"error": f"Network error: {str(e)}"}), 500
+        # Возвращаем 302 редирект на публичный URL
+        return redirect(public_url)
             
     except Exception as e:
         logger.error(f"Unexpected error in get_schedule: {str(e)}")
