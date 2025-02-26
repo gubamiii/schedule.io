@@ -62,11 +62,13 @@ function getCurrentWeek() {
             return period.week;
         }
     }
-    return 1;
+    console.log("Не удалось определить текущую неделю, используем неделю 1");
+    return 1; // Default to week 1 if no match
 }
 
 // Устанавливаем текущую неделю при загрузке
 currentWeek = getCurrentWeek();
+console.log("Установлена текущая неделя:", currentWeek);
 
     async function loadSchedule() {
       try {
@@ -77,7 +79,7 @@ currentWeek = getCurrentWeek();
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
         const responseText = await response.text();
-        console.log('Response text:', responseText);
+        console.log('Response text length:', responseText.length);
         
         try {
           scheduleData = JSON.parse(responseText);
@@ -86,10 +88,12 @@ currentWeek = getCurrentWeek();
           throw parseError;
         }
         
-        console.log('Parsed schedule data:', scheduleData);
+        console.log('Parsed schedule data with weeks:', Object.keys(scheduleData));
         
+        // If the current week doesn't exist in the data, default to week 1
         if (!scheduleData[currentWeek]) {
-          console.warn(`Нет данных для недели ${currentWeek}`);
+          console.warn(`Нет данных для недели ${currentWeek}, переключаемся на неделю 1`);
+          currentWeek = 1;
         }
         
         renderTable(currentWeek);
@@ -104,11 +108,17 @@ currentWeek = getCurrentWeek();
       const table = document.getElementById("schedule-table");
       table.innerHTML = ""; // Очищаем таблицу
 
-      if (!scheduleData || !scheduleData[week]) {
+      // Make sure we're using a string key for the week
+      const weekKey = week.toString();
+
+      if (!scheduleData || !scheduleData[weekKey]) {
+        console.error('Данные для недели', weekKey, 'не найдены в:', Object.keys(scheduleData));
         table.innerHTML = "<tr><td>Нет данных для этой недели</td></tr>";
-        console.error('Данные для недели', week, 'не найдены');
         return;
       }
+      
+      console.log(`Рендеринг данных для недели ${weekKey}`);
+      
       // Создаем тело таблицы
       const tbody = document.createElement("tbody");
       table.appendChild(tbody);
@@ -116,7 +126,10 @@ currentWeek = getCurrentWeek();
       const daysOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
       
       daysOrder.forEach(day => {
-        if (!scheduleData[week][day]) return;
+        if (!scheduleData[weekKey][day]) {
+          console.warn(`Нет данных для дня ${day} в неделе ${weekKey}`);
+          return;
+        }
 
         // Заголовок дня
         const dayRow = document.createElement("tr");
@@ -128,8 +141,10 @@ currentWeek = getCurrentWeek();
         tbody.appendChild(dayRow);
 
         // Уроки дня
-        scheduleData[week][day].forEach((lessonText, index) => {
-          const [time, subject] = lessonText.split(" | ");
+        scheduleData[weekKey][day].forEach((lessonText, index) => {
+          const parts = lessonText.split(" | ");
+          const time = parts[0] || "";
+          const subject = parts.length > 1 ? parts[1] : "";
           
           const lessonRow = document.createElement("tr");
           
@@ -145,7 +160,7 @@ currentWeek = getCurrentWeek();
           if (isEditMode) {
             subjectCell.style.backgroundColor = "#fff3cd";
             subjectCell.addEventListener("input", (e) => {
-              scheduleData[week][day][index] = `${time} | ${e.target.textContent}`;
+              scheduleData[weekKey][day][index] = `${time} | ${e.target.textContent}`;
             });
           }
 
