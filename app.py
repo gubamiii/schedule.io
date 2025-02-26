@@ -72,9 +72,23 @@ def handle_blob_upload():
 @app.route('/schedule.json')
 def get_schedule():
     try:
-        with open('static/schedule.json', 'r', encoding='utf-8') as f:
-            data = json.load(f)
-        return jsonify(data)
+        # Get the file from Vercel Blob Storage
+        headers = {
+            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
+        }
+        response = requests.get(
+            f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json",
+            headers=headers
+        )
+        
+        if response.status_code == 404:
+            # Return empty schedule if file doesn't exist
+            return jsonify({"weeks": []})
+        
+        if response.status_code != 200:
+            return jsonify({"error": "Failed to fetch schedule"}), 500
+            
+        return jsonify(response.json())
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
@@ -102,9 +116,44 @@ def save_schedule():
         if not schedule_data:
             return jsonify({"error": "No schedule data provided"}), 400
             
-        # Save to local file
-        with open('static/schedule.json', 'w', encoding='utf-8') as f:
-            json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+        # Convert data to JSON string and encode to bytes
+        json_data = json.dumps(schedule_data).encode()
+        
+        # Create a request to Vercel Blob API
+        headers = {
+            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
+        }
+        
+        # Get a presigned URL
+        presigned_url_response = requests.post(
+            "https://blob.vercel-storage.com/post-url",
+            headers=headers,
+            json={
+                "size": len(json_data),
+                "contentType": "application/json",
+                "storeId": BLOB_STORE_ID,
+                "pathname": "schedule.json",
+                "access": "public",
+                "addRandomSuffix": False
+            }
+        )
+        
+        presigned_data = presigned_url_response.json()
+        
+        if "url" not in presigned_data:
+            return jsonify({"error": "Failed to get presigned URL"}), 500
+        
+        # Upload the file to the presigned URL
+        upload_response = requests.put(
+            presigned_data["url"],
+            data=json_data,
+            headers={
+                "Content-Type": "application/json"
+            }
+        )
+        
+        if upload_response.status_code != 200:
+            return jsonify({"error": "Failed to upload file"}), 500
             
         return jsonify({"success": True}), 200
     except Exception as e:
