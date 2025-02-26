@@ -88,21 +88,48 @@ def handle_blob_upload():
 
 @app.route('/schedule.json')
 def get_schedule():
-    """Перенаправляет на публичный URL расписания в Vercel Blob Storage"""
+    """Проксирует данные из публичного URL Blob Storage"""
     try:
-        logger.info("Redirecting to public Blob Storage URL")
+        logger.info("Proxying data from public Blob Storage URL")
         
         # Проверяем, что переменные окружения установлены
         if not BLOB_STORE_ID:
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
         
-        # Прямое перенаправление на публичный URL
+        # Формируем публичный URL
         public_url = f"https://{BLOB_STORE_ID}.public.blob.vercel-storage.com/schedule.json"
-        logger.info(f"Redirecting to: {public_url}")
+        logger.info(f"Fetching from: {public_url}")
         
-        # Возвращаем 302 редирект на публичный URL
-        return redirect(public_url)
+        # Получаем данные из публичного URL
+        try:
+            response = requests.get(public_url, timeout=10)
+            
+            logger.info(f"Response status: {response.status_code}")
+            
+            if response.status_code == 404:
+                logger.warning("Schedule file not found in Blob Storage")
+                return jsonify({"error": "Schedule not found"}), 404
+            
+            if response.status_code != 200:
+                logger.error(f"Error fetching schedule: {response.text}")
+                return jsonify({"error": f"Failed to fetch schedule: {response.status_code}"}), 500
+            
+            # Пытаемся распарсить JSON
+            try:
+                data = response.json()
+                logger.info("Successfully fetched and parsed schedule data")
+                
+                # Возвращаем данные напрямую
+                return jsonify(data)
+                
+            except Exception as e:
+                logger.error(f"Error parsing JSON: {str(e)}")
+                return jsonify({"error": f"Invalid JSON format: {str(e)}"}), 500
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request exception: {str(e)}")
+            return jsonify({"error": f"Network error: {str(e)}"}), 500
             
     except Exception as e:
         logger.error(f"Unexpected error in get_schedule: {str(e)}")
