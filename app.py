@@ -3,6 +3,11 @@ import os
 from dotenv import load_dotenv
 import json
 import requests
+import logging
+
+# Настройка логирования
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -11,6 +16,10 @@ app = Flask(__name__)
 BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
 BLOB_STORE_ID = os.getenv("BLOB_STORE_ID")
 EDIT_PASSWORD = os.getenv("EDIT_PASSWORD")
+
+logger.info(f"BLOB_STORE_ID set: {bool(BLOB_STORE_ID)}")
+logger.info(f"BLOB_READ_WRITE_TOKEN set: {bool(BLOB_READ_WRITE_TOKEN)}")
+logger.info(f"EDIT_PASSWORD set: {bool(EDIT_PASSWORD)}")
 
 @app.route("/")
 def index():
@@ -72,44 +81,48 @@ def handle_blob_upload():
 @app.route('/schedule.json')
 def get_schedule():
     try:
-        print("Fetching schedule from Vercel Blob Storage")
+        logger.info("Fetching schedule from Vercel Blob Storage")
         # Get the file from Vercel Blob Storage
         headers = {
             "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
         }
         
         blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
-        print(f"Blob URL: {blob_url}")
+        logger.info(f"Blob URL: {blob_url}")
+        logger.info(f"BLOB_STORE_ID: {'[SET]' if BLOB_STORE_ID else '[NOT SET]'}")
+        logger.info(f"BLOB_READ_WRITE_TOKEN: {'[SET]' if BLOB_READ_WRITE_TOKEN else '[NOT SET]'}")
         
         response = requests.get(
             blob_url,
             headers=headers
         )
         
-        print(f"Response status: {response.status_code}")
+        logger.info(f"Response status: {response.status_code}")
         
         if response.status_code == 404:
-            print("Schedule file not found, returning empty object")
+            logger.warning("Schedule file not found, returning empty object")
             # Return empty schedule if file doesn't exist
-            return jsonify({})
+            return jsonify({}), 200  # Explicitly return 200 status
         
         if response.status_code != 200:
-            print(f"Error fetching schedule: {response.text}")
+            logger.error(f"Error fetching schedule: {response.text}")
+            # Log headers for debugging
+            logger.error(f"Response headers: {dict(response.headers)}")
             return jsonify({"error": "Failed to fetch schedule"}), 500
         
         # Parse the JSON from the response
         try:
             data = response.json()
-            print(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+            logger.info(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
         except Exception as e:
-            print(f"Error parsing JSON: {str(e)}")
-            print(f"Response content: {response.text[:200]}...")
+            logger.error(f"Error parsing JSON: {str(e)}")
+            logger.error(f"Response content: {response.text[:200]}...")
             return jsonify({"error": f"Failed to parse schedule data: {str(e)}"}), 500
         
         # Return the data directly
         return jsonify(data)
     except Exception as e:
-        print(f"Unexpected error in get_schedule: {str(e)}")
+        logger.error(f"Unexpected error in get_schedule: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/verify-password', methods=['POST'])

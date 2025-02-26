@@ -1,13 +1,36 @@
 document.addEventListener('DOMContentLoaded', () => {
     const flaskData = document.getElementById('flask-data');
-    const editPassword = flaskData.dataset.editPassword;
-    const saveUrl = flaskData.dataset.saveUrl;
-    const scheduleUrl = flaskData.dataset.scheduleUrl;
+    const editPassword = flaskData ? flaskData.dataset.editPassword : null;
+    const saveUrl = flaskData ? flaskData.dataset.saveUrl : null;
+    const scheduleUrl = flaskData ? flaskData.dataset.scheduleUrl : null;
     const totalWeeks = 19;
     let currentWeek = 1;
     let scheduleData = {};
     let isEditMode = false;
-
+    
+    // Отладочная информация
+    let debugInfo = {
+        messages: [],
+        addMessage: function(msg) {
+            const timestamp = new Date().toLocaleTimeString();
+            this.messages.push(`[${timestamp}] ${msg}`);
+            console.log(msg);
+            this.updateDisplay();
+        },
+        updateDisplay: function() {
+            const debugContent = document.getElementById('debug-content');
+            if (debugContent) {
+                debugContent.innerHTML = this.messages.join('<br>');
+            }
+        }
+    };
+    
+    // Добавляем базовую информацию
+    debugInfo.addMessage(`Vercel Preview Debug Info:`);
+    debugInfo.addMessage(`editPassword set: ${editPassword ? 'Yes' : 'No'}`);
+    debugInfo.addMessage(`saveUrl: ${saveUrl || 'Not Set'}`);
+    debugInfo.addMessage(`scheduleUrl: ${scheduleUrl || 'Not Set'}`);
+    
     function updateProgressBar() {
         const progressFill = document.getElementById("progress-fill");
         const progressText = document.getElementById("progress-text");
@@ -27,9 +50,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    document.addEventListener('DOMContentLoaded', () => {
-        updateProgressBar();
-    });
+    // Удаляем внутренний обработчик DOMContentLoaded
+    updateProgressBar();
 
     const weekMapping = [
     { week: 1, start: "2025-02-08", end: "2025-02-17" },
@@ -72,35 +94,77 @@ console.log("Установлена текущая неделя:", currentWeek);
 
     async function loadSchedule() {
       try {
-        console.log('Fetching schedule from:', scheduleUrl);
-        const response = await fetch(scheduleUrl);
-        console.log('Response status:', response.status);
+        debugInfo.addMessage(`Загрузка расписания из: ${scheduleUrl}`);
         
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        const responseText = await response.text();
-        console.log('Response text length:', responseText.length);
-        
-        try {
-          scheduleData = JSON.parse(responseText);
-        } catch (parseError) {
-          console.error('Error parsing JSON:', parseError);
-          throw parseError;
+        if (!scheduleUrl) {
+          const error = 'scheduleUrl не определен или пуст';
+          debugInfo.addMessage(`Ошибка: ${error}`);
+          throw new Error('URL для загрузки расписания не настроен');
         }
         
-        console.log('Parsed schedule data with weeks:', Object.keys(scheduleData));
+        // Добавляем случайный параметр к URL, чтобы избежать кэширования
+        const urlWithCache = `${scheduleUrl}?_=${new Date().getTime()}`;
+        debugInfo.addMessage(`URL с параметром против кэширования: ${urlWithCache}`);
+        
+        debugInfo.addMessage('Отправка запроса...');
+        const response = await fetch(urlWithCache, {
+          headers: {
+            'Cache-Control': 'no-cache',
+            'Pragma': 'no-cache'
+          }
+        });
+        debugInfo.addMessage(`Статус ответа: ${response.status} ${response.statusText}`);
+        
+        if (!response.ok) {
+          const error = `HTTP ошибка: ${response.status} ${response.statusText}`;
+          debugInfo.addMessage(error);
+          throw new Error(`Ошибка HTTP! Статус: ${response.status}`);
+        }
+        
+        const responseText = await response.text();
+        debugInfo.addMessage(`Длина текста ответа: ${responseText.length} символов`);
+        
+        if (responseText.length < 100) {
+          debugInfo.addMessage(`Предпросмотр ответа: ${responseText}`);
+        } else {
+          debugInfo.addMessage(`Предпросмотр ответа: ${responseText.substring(0, 100)}...`);
+        }
+        
+        if (!responseText || responseText.trim() === '') {
+          debugInfo.addMessage('Получен пустой ответ');
+          throw new Error('Получен пустой ответ от сервера');
+        }
+        
+        try {
+          debugInfo.addMessage('Попытка разобрать JSON...');
+          scheduleData = JSON.parse(responseText);
+          debugInfo.addMessage('JSON успешно разобран');
+        } catch (parseError) {
+          debugInfo.addMessage(`Ошибка при разборе JSON: ${parseError.message}`);
+          throw new Error('Ошибка при обработке данных расписания');
+        }
+        
+        const weeks = Object.keys(scheduleData);
+        debugInfo.addMessage(`Данные расписания содержат недели: ${weeks.join(', ')}`);
+        
+        if (weeks.length === 0) {
+          debugInfo.addMessage('Расписание пусто или не содержит данных');
+          const table = document.getElementById("schedule-table");
+          table.innerHTML = "<tr><td>Расписание пока не заполнено</td></tr>";
+          return;
+        }
         
         // If the current week doesn't exist in the data, default to week 1
         if (!scheduleData[currentWeek]) {
-          console.warn(`Нет данных для недели ${currentWeek}, переключаемся на неделю 1`);
+          debugInfo.addMessage(`Нет данных для недели ${currentWeek}, переключаемся на неделю 1`);
           currentWeek = 1;
         }
         
         renderTable(currentWeek);
       } catch (error) {
-        console.error("Ошибка загрузки расписания:", error);
+        debugInfo.addMessage(`Критическая ошибка: ${error.message}`);
         const table = document.getElementById("schedule-table");
-        table.innerHTML = "<tr><td>Ошибка загрузки данных</td></tr>";
+        table.innerHTML = `<tr><td>Ошибка загрузки данных: ${error.message}</td></tr>`;
       }
     }
 

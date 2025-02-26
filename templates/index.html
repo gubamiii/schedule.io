@@ -32,15 +32,29 @@
     </div>
     <button id="saveBtn" class="save-btn" style="display: none;">Сохранить</button>
     <table id="schedule-table">
+      <tr><td>Загрузка расписания...</td></tr>
     </table>
+    
+    <!-- Добавленный блок для отладочной информации -->
+    <div id="debug-info" style="margin-top: 20px; font-size: 12px; color: #666; display: none;">
+      <hr>
+      <h3>Отладочная информация</h3>
+      <div id="debug-content"></div>
+      <button onclick="document.getElementById('debug-info').style.display='none'">Скрыть</button>
+    </div>
   </div>
 
-  <!-- Добавим блок для передачи переменных из Flask -->
+  <!-- Блок для передачи переменных из Flask -->
   <div id="flask-data" 
        data-edit-password="{{ edit_password }}"
-       data-save-url="{{ url_for('save_schedule') }}"
-       data-schedule-url="/schedule.json"
+       data-save-url="{{ url_for('save_schedule', _external=True) }}"
+       data-schedule-url="{{ url_for('get_schedule', _external=True) }}"
        style="display: none;">
+  </div>
+  
+  <!-- Добавляем кнопку для отображения отладочной информации -->
+  <div style="text-align: center; margin-top: 20px;">
+    <button onclick="document.getElementById('debug-info').style.display='block'">Отладка</button>
   </div>
 </body>
 </html>
