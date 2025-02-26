@@ -72,28 +72,44 @@ def handle_blob_upload():
 @app.route('/schedule.json')
 def get_schedule():
     try:
+        print("Fetching schedule from Vercel Blob Storage")
         # Get the file from Vercel Blob Storage
         headers = {
             "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
         }
+        
+        blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
+        print(f"Blob URL: {blob_url}")
+        
         response = requests.get(
-            f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json",
+            blob_url,
             headers=headers
         )
         
+        print(f"Response status: {response.status_code}")
+        
         if response.status_code == 404:
+            print("Schedule file not found, returning empty object")
             # Return empty schedule if file doesn't exist
             return jsonify({})
         
         if response.status_code != 200:
+            print(f"Error fetching schedule: {response.text}")
             return jsonify({"error": "Failed to fetch schedule"}), 500
         
         # Parse the JSON from the response
-        data = response.json()
+        try:
+            data = response.json()
+            print(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+        except Exception as e:
+            print(f"Error parsing JSON: {str(e)}")
+            print(f"Response content: {response.text[:200]}...")
+            return jsonify({"error": f"Failed to parse schedule data: {str(e)}"}), 500
         
         # Return the data directly
         return jsonify(data)
     except Exception as e:
+        print(f"Unexpected error in get_schedule: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/verify-password', methods=['POST'])
@@ -162,6 +178,43 @@ def save_schedule():
         return jsonify({"success": True}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@app.route('/api/check-blob-config')
+def check_blob_config():
+    try:
+        # Check if environment variables are set
+        config = {
+            "BLOB_STORE_ID": BLOB_STORE_ID is not None,
+            "BLOB_READ_WRITE_TOKEN": BLOB_READ_WRITE_TOKEN is not None,
+            "EDIT_PASSWORD": EDIT_PASSWORD is not None
+        }
+        
+        # Try to list blobs to verify token works
+        if BLOB_READ_WRITE_TOKEN and BLOB_STORE_ID:
+            headers = {
+                "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
+            }
+            
+            response = requests.get(
+                f"https://blob.vercel-storage.com/list?storeId={BLOB_STORE_ID}",
+                headers=headers
+            )
+            
+            config["blob_list_status"] = response.status_code
+            
+            if response.status_code == 200:
+                blob_data = response.json()
+                config["blobs"] = blob_data.get("blobs", [])
+                config["status"] = "success"
+            else:
+                config["error"] = response.text
+                config["status"] = "error"
+        else:
+            config["status"] = "missing_config"
+            
+        return jsonify(config)
+    except Exception as e:
+        return jsonify({"error": str(e), "status": "exception"}), 500
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5228, debug=True)

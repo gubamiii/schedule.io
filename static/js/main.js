@@ -216,12 +216,13 @@ currentWeek = getCurrentWeek();
 
     document.getElementById("saveBtn").addEventListener("click", async function () {
       try {
-        // Send the schedule data directly to the server
-        const response = await fetch("/api/blob-upload", {
+        // Send the schedule data to the server with password authentication
+        const response = await fetch(saveUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            data: scheduleData
+            password: editPassword,
+            schedule: scheduleData
           }),
         });
 
@@ -230,10 +231,10 @@ currentWeek = getCurrentWeek();
           throw new Error(result.error);
         }
 
-        alert(`Файл успешно сохранен! URL: ${result.downloadUrl}`);
+        alert("Расписание успешно сохранено!");
       } catch (error) {
         console.error("Ошибка:", error);
-        alert("Ошибка при сохранении!");
+        alert("Ошибка при сохранении: " + error.message);
       }
     });
        
