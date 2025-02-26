@@ -91,6 +91,16 @@ def handle_blob_upload():
 def get_schedule():
     try:
         logger.info("Fetching schedule from Vercel Blob Storage")
+        
+        # Проверяем, что переменные окружения установлены
+        if not BLOB_READ_WRITE_TOKEN:
+            logger.error("BLOB_READ_WRITE_TOKEN is not set")
+            return jsonify(get_default_schedule()), 200
+            
+        if not BLOB_STORE_ID:
+            logger.error("BLOB_STORE_ID is not set")
+            return jsonify(get_default_schedule()), 200
+        
         # Get the file from Vercel Blob Storage
         headers = {
             "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
@@ -98,49 +108,52 @@ def get_schedule():
         
         blob_url = f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
         logger.info(f"Blob URL: {blob_url}")
-        logger.info(f"BLOB_STORE_ID: {'[SET]' if BLOB_STORE_ID else '[NOT SET]'}")
-        logger.info(f"BLOB_READ_WRITE_TOKEN: {'[SET]' if BLOB_READ_WRITE_TOKEN else '[NOT SET]'}")
         
-        response = requests.get(
-            blob_url,
-            headers=headers
-        )
-        
-        logger.info(f"Response status: {response.status_code}")
-        
-        if response.status_code == 404:
-            logger.warning("Schedule file not found, returning default schedule")
-            # Return default schedule if file doesn't exist
-            default_schedule = get_default_schedule()
-            return jsonify(default_schedule), 200
-        
-        if response.status_code != 200:
-            logger.error(f"Error fetching schedule: {response.text}")
-            # Log headers for debugging
-            logger.error(f"Response headers: {dict(response.headers)}")
-            return jsonify({"error": "Failed to fetch schedule"}), 500
-        
-        # Parse the JSON from the response
         try:
-            data = response.json()
-            logger.info(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+            response = requests.get(
+                blob_url,
+                headers=headers,
+                timeout=10  # Добавляем таймаут
+            )
             
-            # Если данные пусты, возвращаем базовое расписание
-            if not data or (isinstance(data, dict) and len(data) == 0):
-                logger.warning("Empty schedule data, returning default schedule")
-                default_schedule = get_default_schedule()
-                return jsonify(default_schedule), 200
+            logger.info(f"Response status: {response.status_code}")
+            
+            if response.status_code == 404:
+                logger.warning("Schedule file not found, returning default schedule")
+                return jsonify(get_default_schedule()), 200
+            
+            if response.status_code != 200:
+                logger.error(f"Error fetching schedule: {response.text}")
+                logger.error(f"Response headers: {dict(response.headers)}")
+                # Возвращаем базовое расписание вместо ошибки
+                return jsonify(get_default_schedule()), 200
+            
+            # Parse the JSON from the response
+            try:
+                data = response.json()
+                logger.info(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
                 
-        except Exception as e:
-            logger.error(f"Error parsing JSON: {str(e)}")
-            logger.error(f"Response content: {response.text[:200]}...")
-            return jsonify({"error": f"Failed to parse schedule data: {str(e)}"}), 500
-        
-        # Return the data directly
-        return jsonify(data)
+                # Если данные пусты, возвращаем базовое расписание
+                if not data or (isinstance(data, dict) and len(data) == 0):
+                    logger.warning("Empty schedule data, returning default schedule")
+                    return jsonify(get_default_schedule()), 200
+                    
+                # Return the data directly
+                return jsonify(data)
+                
+            except Exception as e:
+                logger.error(f"Error parsing JSON: {str(e)}")
+                logger.error(f"Response content: {response.text[:200]}...")
+                return jsonify(get_default_schedule()), 200
+                
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request exception: {str(e)}")
+            return jsonify(get_default_schedule()), 200
+            
     except Exception as e:
         logger.error(f"Unexpected error in get_schedule: {str(e)}")
-        return jsonify({"error": str(e)}), 500
+        # В случае любой ошибки возвращаем базовое расписание
+        return jsonify(get_default_schedule()), 200
 
 @app.route('/api/verify-password', methods=['POST'])
 def verify_password():
@@ -160,11 +173,22 @@ def save_schedule():
         # Verify the edit password
         password = data.get('password')
         if password != EDIT_PASSWORD:
+            logger.warning("Invalid password attempt in save_schedule")
             return jsonify({"error": "Invalid password"}), 403
             
         schedule_data = data.get('schedule')
         if not schedule_data:
+            logger.error("No schedule data provided")
             return jsonify({"error": "No schedule data provided"}), 400
+            
+        # Проверяем, что переменные окружения установлены
+        if not BLOB_READ_WRITE_TOKEN:
+            logger.error("BLOB_READ_WRITE_TOKEN is not set")
+            return jsonify({"error": "Storage configuration error"}), 500
+            
+        if not BLOB_STORE_ID:
+            logger.error("BLOB_STORE_ID is not set")
+            return jsonify({"error": "Storage configuration error"}), 500
             
         # Convert data to JSON string and encode to bytes
         json_data = json.dumps(schedule_data).encode()
@@ -174,39 +198,57 @@ def save_schedule():
             "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
         }
         
-        # Get a presigned URL
-        presigned_url_response = requests.post(
-            "https://blob.vercel-storage.com/post-url",
-            headers=headers,
-            json={
-                "size": len(json_data),
-                "contentType": "application/json",
-                "storeId": BLOB_STORE_ID,
-                "pathname": "schedule.json",
-                "access": "public",
-                "addRandomSuffix": False
-            }
-        )
-        
-        presigned_data = presigned_url_response.json()
-        
-        if "url" not in presigned_data:
-            return jsonify({"error": "Failed to get presigned URL"}), 500
-        
-        # Upload the file to the presigned URL
-        upload_response = requests.put(
-            presigned_data["url"],
-            data=json_data,
-            headers={
-                "Content-Type": "application/json"
-            }
-        )
-        
-        if upload_response.status_code != 200:
-            return jsonify({"error": "Failed to upload file"}), 500
+        try:
+            # Get a presigned URL
+            logger.info("Getting presigned URL for upload")
+            presigned_url_response = requests.post(
+                "https://blob.vercel-storage.com/post-url",
+                headers=headers,
+                json={
+                    "size": len(json_data),
+                    "contentType": "application/json",
+                    "storeId": BLOB_STORE_ID,
+                    "pathname": "schedule.json",
+                    "access": "public",
+                    "addRandomSuffix": False
+                },
+                timeout=10
+            )
             
-        return jsonify({"success": True}), 200
+            if presigned_url_response.status_code != 200:
+                logger.error(f"Failed to get presigned URL: {presigned_url_response.status_code} - {presigned_url_response.text}")
+                return jsonify({"error": "Failed to get upload URL"}), 500
+            
+            presigned_data = presigned_url_response.json()
+            
+            if "url" not in presigned_data:
+                logger.error(f"URL not found in presigned data: {presigned_data}")
+                return jsonify({"error": "Failed to get upload URL"}), 500
+            
+            # Upload the file to the presigned URL
+            logger.info(f"Uploading file to presigned URL: {presigned_data['url']}")
+            upload_response = requests.put(
+                presigned_data["url"],
+                data=json_data,
+                headers={
+                    "Content-Type": "application/json"
+                },
+                timeout=10
+            )
+            
+            if upload_response.status_code != 200:
+                logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
+                return jsonify({"error": "Failed to upload file"}), 500
+                
+            logger.info("Schedule successfully saved")
+            return jsonify({"success": True}), 200
+            
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request exception during save: {str(e)}")
+            return jsonify({"error": f"Network error: {str(e)}"}), 500
+            
     except Exception as e:
+        logger.error(f"Unexpected error in save_schedule: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/check-blob-config')

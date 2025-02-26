@@ -22,6 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (debugContent) {
                 debugContent.innerHTML = this.messages.join('<br>');
             }
+        },
+        clear: function() {
+            this.messages = [];
+            this.updateDisplay();
         }
     };
     
@@ -30,6 +34,10 @@ document.addEventListener('DOMContentLoaded', () => {
     debugInfo.addMessage(`editPassword set: ${editPassword ? 'Yes' : 'No'}`);
     debugInfo.addMessage(`saveUrl: ${saveUrl || 'Not Set'}`);
     debugInfo.addMessage(`scheduleUrl: ${scheduleUrl || 'Not Set'}`);
+    
+    // Добавляем информацию о браузере и окружении
+    debugInfo.addMessage(`User Agent: ${navigator.userAgent}`);
+    debugInfo.addMessage(`Window Location: ${window.location.href}`);
     
     function updateProgressBar() {
         const progressFill = document.getElementById("progress-fill");
@@ -92,7 +100,7 @@ function getCurrentWeek() {
 currentWeek = getCurrentWeek();
 console.log("Установлена текущая неделя:", currentWeek);
 
-    async function loadSchedule() {
+    async function loadSchedule(retryCount = 0) {
       try {
         debugInfo.addMessage(`Загрузка расписания из: ${scheduleUrl}`);
         
@@ -111,13 +119,27 @@ console.log("Установлена текущая неделя:", currentWeek);
           headers: {
             'Cache-Control': 'no-cache',
             'Pragma': 'no-cache'
-          }
+          },
+          // Добавляем таймаут через AbortController
+          signal: AbortSignal.timeout(10000) // 10 секунд таймаут
         });
         debugInfo.addMessage(`Статус ответа: ${response.status} ${response.statusText}`);
         
         if (!response.ok) {
           const error = `HTTP ошибка: ${response.status} ${response.statusText}`;
           debugInfo.addMessage(error);
+          
+          // Если получили ошибку 500 и есть попытки для повтора, пробуем снова
+          if (response.status === 500 && retryCount < 3) {
+            const retryDelay = Math.pow(2, retryCount) * 1000; // Экспоненциальная задержка
+            debugInfo.addMessage(`Повторная попытка через ${retryDelay/1000} сек...`);
+            
+            setTimeout(() => {
+              loadSchedule(retryCount + 1);
+            }, retryDelay);
+            return;
+          }
+          
           throw new Error(`Ошибка HTTP! Статус: ${response.status}`);
         }
         
@@ -271,6 +293,20 @@ console.log("Установлена текущая неделя:", currentWeek);
         renderTable(currentWeek);
         updateProgressBar();
       }
+    });
+
+    // Добавляем обработчик для кнопки перезагрузки
+    document.getElementById("reloadBtn").addEventListener("click", () => {
+      debugInfo.addMessage("Принудительная перезагрузка расписания...");
+      debugInfo.clear();
+      debugInfo.addMessage("Принудительная перезагрузка расписания...");
+      
+      // Очищаем таблицу и показываем сообщение о загрузке
+      const table = document.getElementById("schedule-table");
+      table.innerHTML = "<tr><td>Загрузка расписания...</td></tr>";
+      
+      // Перезагружаем расписание
+      loadSchedule();
     });
 
     // Добавляем обработчик для кнопки логина
