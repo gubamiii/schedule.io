@@ -70,11 +70,23 @@ currentWeek = getCurrentWeek();
 
     async function loadSchedule() {
       try {
+        console.log('Fetching schedule from:', scheduleUrl);
         const response = await fetch(scheduleUrl);
+        console.log('Response status:', response.status);
+        
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         
-        scheduleData = await response.json();
-        console.log('Загруженные данные:', scheduleData); 
+        const responseText = await response.text();
+        console.log('Response text:', responseText);
+        
+        try {
+          scheduleData = JSON.parse(responseText);
+        } catch (parseError) {
+          console.error('Error parsing JSON:', parseError);
+          throw parseError;
+        }
+        
+        console.log('Parsed schedule data:', scheduleData);
         
         if (!scheduleData[currentWeek]) {
           console.warn(`Нет данных для недели ${currentWeek}`);

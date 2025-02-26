@@ -83,12 +83,16 @@ def get_schedule():
         
         if response.status_code == 404:
             # Return empty schedule if file doesn't exist
-            return jsonify({"weeks": []})
+            return jsonify({})
         
         if response.status_code != 200:
             return jsonify({"error": "Failed to fetch schedule"}), 500
-            
-        return jsonify(response.json())
+        
+        # Parse the JSON from the response
+        data = response.json()
+        
+        # Return the data directly
+        return jsonify(data)
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
