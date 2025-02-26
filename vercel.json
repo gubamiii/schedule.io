@@ -4,6 +4,10 @@
     {
       "src": "app.py",
       "use": "@vercel/python"
+    },
+    {
+      "src": "static/**",
+      "use": "@vercel/static"
     }
   ],
   "routes": [
@@ -18,8 +22,17 @@
       "methods": ["POST"]
     },
     {
+      "src": "/api/save-schedule",
+      "dest": "app.py",
+      "methods": ["POST"]
+    },
+    {
       "src": "/static/(.*)",
       "dest": "/static/$1"
+    },
+    {
+      "src": "/schedule.json",
+      "dest": "app.py"
     },
     {
       "src": "/(.*)",
