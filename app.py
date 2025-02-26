@@ -95,11 +95,11 @@ def get_schedule():
         # Проверяем, что переменные окружения установлены
         if not BLOB_READ_WRITE_TOKEN:
             logger.error("BLOB_READ_WRITE_TOKEN is not set")
-            return jsonify(get_default_schedule()), 200
+             
             
         if not BLOB_STORE_ID:
             logger.error("BLOB_STORE_ID is not set")
-            return jsonify(get_default_schedule()), 200
+             
         
         # Get the file from Vercel Blob Storage
         headers = {
@@ -120,13 +120,13 @@ def get_schedule():
             
             if response.status_code == 404:
                 logger.warning("Schedule file not found, returning default schedule")
-                return jsonify(get_default_schedule()), 200
+                 
             
             if response.status_code != 200:
                 logger.error(f"Error fetching schedule: {response.text}")
                 logger.error(f"Response headers: {dict(response.headers)}")
                 # Возвращаем базовое расписание вместо ошибки
-                return jsonify(get_default_schedule()), 200
+                 
             
             # Parse the JSON from the response
             try:
@@ -136,7 +136,7 @@ def get_schedule():
                 # Если данные пусты, возвращаем базовое расписание
                 if not data or (isinstance(data, dict) and len(data) == 0):
                     logger.warning("Empty schedule data, returning default schedule")
-                    return jsonify(get_default_schedule()), 200
+                     
                     
                 # Return the data directly
                 return jsonify(data)
@@ -144,16 +144,16 @@ def get_schedule():
             except Exception as e:
                 logger.error(f"Error parsing JSON: {str(e)}")
                 logger.error(f"Response content: {response.text[:200]}...")
-                return jsonify(get_default_schedule()), 200
+                 
                 
         except requests.exceptions.RequestException as e:
             logger.error(f"Request exception: {str(e)}")
-            return jsonify(get_default_schedule()), 200
+             
             
     except Exception as e:
         logger.error(f"Unexpected error in get_schedule: {str(e)}")
         # В случае любой ошибки возвращаем базовое расписание
-        return jsonify(get_default_schedule()), 200
+         
 
 @app.route('/api/verify-password', methods=['POST'])
 def verify_password():
