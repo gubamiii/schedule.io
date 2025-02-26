@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 from dotenv import load_dotenv
 import json
@@ -20,7 +20,6 @@ EDIT_PASSWORD = os.getenv("EDIT_PASSWORD")
 logger.info(f"BLOB_STORE_ID set: {bool(BLOB_STORE_ID)}")
 logger.info(f"BLOB_READ_WRITE_TOKEN set: {bool(BLOB_READ_WRITE_TOKEN)}")
 logger.info(f"EDIT_PASSWORD set: {bool(EDIT_PASSWORD)}")
-
 
 @app.route("/")
 def index():
@@ -89,17 +88,18 @@ def handle_blob_upload():
 
 @app.route('/schedule.json')
 def get_schedule():
+    """Получает расписание только из Vercel Blob Storage"""
     try:
         logger.info("Fetching schedule from Vercel Blob Storage")
         
         # Проверяем, что переменные окружения установлены
         if not BLOB_READ_WRITE_TOKEN:
             logger.error("BLOB_READ_WRITE_TOKEN is not set")
-             
+            return jsonify({"error": "Storage configuration error"}), 500
             
         if not BLOB_STORE_ID:
             logger.error("BLOB_STORE_ID is not set")
-             
+            return jsonify({"error": "Storage configuration error"}), 500
         
         # Get the file from Vercel Blob Storage
         headers = {
@@ -119,24 +119,23 @@ def get_schedule():
             logger.info(f"Response status: {response.status_code}")
             
             if response.status_code == 404:
-                logger.warning("Schedule file not found, returning default schedule")
-                 
+                logger.warning("Schedule file not found in Blob Storage")
+                return jsonify({"error": "Schedule not found"}), 404
             
             if response.status_code != 200:
                 logger.error(f"Error fetching schedule: {response.text}")
                 logger.error(f"Response headers: {dict(response.headers)}")
-                # Возвращаем базовое расписание вместо ошибки
-                 
+                return jsonify({"error": f"Failed to fetch schedule: {response.status_code}"}), 500
             
             # Parse the JSON from the response
             try:
                 data = response.json()
                 logger.info(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
                 
-                # Если данные пусты, возвращаем базовое расписание
+                # Если данные пусты, возвращаем ошибку
                 if not data or (isinstance(data, dict) and len(data) == 0):
-                    logger.warning("Empty schedule data, returning default schedule")
-                     
+                    logger.warning("Empty schedule data received")
+                    return jsonify({"error": "Empty schedule data"}), 500
                     
                 # Return the data directly
                 return jsonify(data)
@@ -144,16 +143,15 @@ def get_schedule():
             except Exception as e:
                 logger.error(f"Error parsing JSON: {str(e)}")
                 logger.error(f"Response content: {response.text[:200]}...")
-                 
+                return jsonify({"error": f"Invalid JSON format: {str(e)}"}), 500
                 
         except requests.exceptions.RequestException as e:
             logger.error(f"Request exception: {str(e)}")
-             
+            return jsonify({"error": f"Network error: {str(e)}"}), 500
             
     except Exception as e:
         logger.error(f"Unexpected error in get_schedule: {str(e)}")
-        # В случае любой ошибки возвращаем базовое расписание
-         
+        return jsonify({"error": f"Server error: {str(e)}"}), 500
 
 @app.route('/api/verify-password', methods=['POST'])
 def verify_password():
