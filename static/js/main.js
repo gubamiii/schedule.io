@@ -176,12 +176,27 @@ console.log("Установлена текущая неделя:", currentWeek);
       const weekKey = week.toString();
 
       if (!scheduleData || !scheduleData[weekKey]) {
-        console.error('Данные для недели', weekKey, 'не найдены в:', Object.keys(scheduleData));
+        debugInfo.addMessage(`Данные для недели ${weekKey} не найдены`);
+        
+        if (Object.keys(scheduleData).length > 0) {
+          // Если есть другие недели, используем первую доступную
+          const availableWeeks = Object.keys(scheduleData);
+          debugInfo.addMessage(`Доступные недели: ${availableWeeks.join(', ')}`);
+          
+          if (availableWeeks.length > 0) {
+            const firstWeek = availableWeeks[0];
+            debugInfo.addMessage(`Переключаемся на неделю ${firstWeek}`);
+            currentWeek = parseInt(firstWeek);
+            renderTable(currentWeek);
+            return;
+          }
+        }
+        
         table.innerHTML = "<tr><td>Нет данных для этой недели</td></tr>";
         return;
       }
       
-      console.log(`Рендеринг данных для недели ${weekKey}`);
+      debugInfo.addMessage(`Рендеринг данных для недели ${weekKey}`);
       
       // Создаем тело таблицы
       const tbody = document.createElement("tbody");
@@ -191,7 +206,7 @@ console.log("Установлена текущая неделя:", currentWeek);
       
       daysOrder.forEach(day => {
         if (!scheduleData[weekKey][day]) {
-          console.warn(`Нет данных для дня ${day} в неделе ${weekKey}`);
+          debugInfo.addMessage(`Нет данных для дня ${day} в неделе ${weekKey}`);
           return;
         }
 

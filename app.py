@@ -21,9 +21,18 @@ logger.info(f"BLOB_STORE_ID set: {bool(BLOB_STORE_ID)}")
 logger.info(f"BLOB_READ_WRITE_TOKEN set: {bool(BLOB_READ_WRITE_TOKEN)}")
 logger.info(f"EDIT_PASSWORD set: {bool(EDIT_PASSWORD)}")
 
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    # Передаем переменные окружения в шаблон
+    return render_template("index.html", 
+                          edit_password=EDIT_PASSWORD,
+                          blob_store_id=BLOB_STORE_ID,
+                          env_info={
+                              "BLOB_STORE_ID": bool(BLOB_STORE_ID),
+                              "BLOB_READ_WRITE_TOKEN": bool(BLOB_READ_WRITE_TOKEN),
+                              "EDIT_PASSWORD": bool(EDIT_PASSWORD)
+                          })
 
 @app.route("/api/blob-upload", methods=["POST"])
 def handle_blob_upload():
@@ -100,9 +109,10 @@ def get_schedule():
         logger.info(f"Response status: {response.status_code}")
         
         if response.status_code == 404:
-            logger.warning("Schedule file not found, returning empty object")
-            # Return empty schedule if file doesn't exist
-            return jsonify({}), 200  # Explicitly return 200 status
+            logger.warning("Schedule file not found, returning default schedule")
+            # Return default schedule if file doesn't exist
+            default_schedule = get_default_schedule()
+            return jsonify(default_schedule), 200
         
         if response.status_code != 200:
             logger.error(f"Error fetching schedule: {response.text}")
@@ -114,6 +124,13 @@ def get_schedule():
         try:
             data = response.json()
             logger.info(f"Successfully parsed JSON data with keys: {list(data.keys()) if isinstance(data, dict) else 'not a dict'}")
+            
+            # Если данные пусты, возвращаем базовое расписание
+            if not data or (isinstance(data, dict) and len(data) == 0):
+                logger.warning("Empty schedule data, returning default schedule")
+                default_schedule = get_default_schedule()
+                return jsonify(default_schedule), 200
+                
         except Exception as e:
             logger.error(f"Error parsing JSON: {str(e)}")
             logger.error(f"Response content: {response.text[:200]}...")

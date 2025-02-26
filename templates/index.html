@@ -40,6 +40,14 @@
       <hr>
       <h3>Отладочная информация</h3>
       <div id="debug-content"></div>
+      
+      <h4>Переменные окружения:</h4>
+      <ul>
+        <li>BLOB_STORE_ID: {{ env_info.BLOB_STORE_ID }}</li>
+        <li>BLOB_READ_WRITE_TOKEN: {{ env_info.BLOB_READ_WRITE_TOKEN }}</li>
+        <li>EDIT_PASSWORD: {{ env_info.EDIT_PASSWORD }}</li>
+      </ul>
+      
       <button onclick="document.getElementById('debug-info').style.display='none'">Скрыть</button>
     </div>
   </div>
