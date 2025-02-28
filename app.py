@@ -118,6 +118,9 @@ def save_schedule():
         # Convert data to JSON string and encode to bytes
         json_data = json.dumps(schedule_data).encode()
         
+        # Используем правильный формат ID хранилища (без префикса store_ и в нижнем регистре)
+        store_id = BLOB_STORE_ID.replace('store_', '').lower()
+        
         # Create a request to Vercel Blob API
         headers = {
             "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
@@ -132,13 +135,17 @@ def save_schedule():
                 json={
                     "size": len(json_data),
                     "contentType": "application/json",
-                    "storeId": BLOB_STORE_ID,
+                    "storeId": store_id,  # Используем правильный формат ID хранилища
                     "pathname": "schedule.json",
                     "access": "public",
                     "addRandomSuffix": False
                 },
                 timeout=10
             )
+            
+            # Добавлем больше логов для отладки
+            logger.info(f"Presigned URL Response Status: {presigned_url_response.status_code}")
+            logger.info(f"Presigned URL Response: {presigned_url_response.text}")
             
             if presigned_url_response.status_code != 200:
                 logger.error(f"Failed to get presigned URL: {presigned_url_response.status_code} - {presigned_url_response.text}")
