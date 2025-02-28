@@ -6,7 +6,7 @@ import requests
 import logging
 from flask_cors import CORS
 
-# Настройка логирования
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
@@ -35,76 +35,15 @@ def index():
                               "EDIT_PASSWORD": bool(EDIT_PASSWORD)
                           })
 
-@app.route("/api/blob-upload", methods=["POST"])
-def handle_blob_upload():
-    try:
-        # Get the data from the request
-        data = request.json.get("data")
-        
-        # Convert data to JSON string and encode to bytes
-        json_data = json.dumps(data).encode()
-        
-        # Create a multipart form-data request to Vercel Blob API
-        headers = {
-            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
-        }
-        
-        # First, get a presigned URL
-        presigned_url_response = requests.post(
-            "https://blob.vercel-storage.com/post-url",
-            headers=headers,
-            json={
-                "size": len(json_data),
-                "contentType": "application/json",
-                "storeId": BLOB_STORE_ID,
-                "pathname": "schedule.json",
-                "access": "public",
-                "addRandomSuffix": False
-            }
-        )
-        
-        presigned_data = presigned_url_response.json()
-        
-        if "url" not in presigned_data:
-            return jsonify({"error": "Failed to get presigned URL", "response": presigned_data}), 500
-        
-        # Now upload the file to the presigned URL
-        upload_response = requests.put(
-            presigned_data["url"],
-            data=json_data,
-            headers={
-                "Content-Type": "application/json"
-            }
-        )
-        
-        if upload_response.status_code != 200:
-            return jsonify({"error": "Failed to upload file", "status": upload_response.status_code}), 500
-        
-        # Return the URL where the file can be accessed
-        return jsonify({
-            "url": presigned_data["url"],
-            "downloadUrl": f"https://blob.vercel-storage.com/{BLOB_STORE_ID}/schedule.json"
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
 @app.route('/schedule.json')
 def get_schedule():
     """Проксирует данные из публичного URL Blob Storage"""
     try:
-        logger.info("Proxying data from public Blob Storage URL")
-        
-        # Проверяем, что переменные окружения установлены
-        if not BLOB_STORE_ID:
-            logger.error("BLOB_STORE_ID is not set")
-            return jsonify({"error": "Storage configuration error"}), 500
-        
-        # Формируем публичный URL (приводим Store ID к нижнему регистру)
-        store_id = BLOB_STORE_ID.lower()
+        # Use the correct URL format (lowercase, no store_ prefix)
+        store_id = BLOB_STORE_ID.replace('store_', '').lower()
         public_url = f"https://{store_id}.public.blob.vercel-storage.com/schedule.json"
         logger.info(f"Fetching from: {public_url}")
         
-        # Получаем данные из публичного URL
         try:
             response = requests.get(public_url, timeout=10)
             
@@ -176,62 +115,37 @@ def save_schedule():
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
             
-        # Convert data to JSON string and encode to bytes
-        json_data = json.dumps(schedule_data).encode()
+        # Save to a temporary file that Node.js will upload
+        temp_file_path = 'temp_schedule.json'
+        with open(temp_file_path, 'w', encoding='utf-8') as f:
+            json.dump(schedule_data, f)
+            
+        # Execute Node.js script to upload the file
+        import subprocess
         
-        # Create a request to Vercel Blob API
-        headers = {
-            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
-        }
+        logger.info("Executing Node.js script to upload the file")
+        process = subprocess.Popen(
+            ['node', 'save_schedule.js'],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
         
+        stdout, stderr = process.communicate()
+        
+        if process.returncode != 0:
+            logger.error(f"Node.js script failed: {stderr.decode()}")
+            return jsonify({"error": "Failed to upload file"}), 500
+            
+        logger.info(f"Node.js script output: {stdout.decode()}")
+        
+        # Remove temporary file
         try:
-            # Get a presigned URL
-            logger.info("Getting presigned URL for upload")
-            presigned_url_response = requests.post(
-                "https://blob.vercel-storage.com/post-url",
-                headers=headers,
-                json={
-                    "size": len(json_data),
-                    "contentType": "application/json",
-                    "storeId": BLOB_STORE_ID,
-                    "pathname": "schedule.json",
-                    "access": "public",
-                    "addRandomSuffix": False
-                },
-                timeout=10
-            )
+            os.remove(temp_file_path)
+        except Exception as e:
+            logger.warning(f"Could not remove temporary file: {e}")
             
-            if presigned_url_response.status_code != 200:
-                logger.error(f"Failed to get presigned URL: {presigned_url_response.status_code} - {presigned_url_response.text}")
-                return jsonify({"error": "Failed to get upload URL"}), 500
-            
-            presigned_data = presigned_url_response.json()
-            
-            if "url" not in presigned_data:
-                logger.error(f"URL not found in presigned data: {presigned_data}")
-                return jsonify({"error": "Failed to get upload URL"}), 500
-            
-            # Upload the file to the presigned URL
-            logger.info(f"Uploading file to presigned URL: {presigned_data['url']}")
-            upload_response = requests.put(
-                presigned_data["url"],
-                data=json_data,
-                headers={
-                    "Content-Type": "application/json"
-                },
-                timeout=10
-            )
-            
-            if upload_response.status_code != 200:
-                logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
-                return jsonify({"error": "Failed to upload file"}), 500
-                
-            logger.info("Schedule successfully saved")
-            return jsonify({"success": True}), 200
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request exception during save: {str(e)}")
-            return jsonify({"error": f"Network error: {str(e)}"}), 500
+        logger.info("Schedule successfully saved")
+        return jsonify({"success": True}), 200
             
     except Exception as e:
         logger.error(f"Unexpected error in save_schedule: {str(e)}")

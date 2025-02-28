@@ -12,11 +12,6 @@
   ],
   "routes": [
     {
-      "src": "/api/blob-upload",
-      "dest": "app.py",
-      "methods": ["POST"]
-    },
-    {
       "src": "/api/verify-password",
       "dest": "app.py",
       "methods": ["POST"]
