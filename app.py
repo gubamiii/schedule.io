@@ -106,6 +106,47 @@ def save_schedule():
             logger.error("No schedule data provided")
             return jsonify({"error": "No schedule data provided"}), 400
             
+        # Определяем, находимся ли мы в локальной среде или в Vercel
+        is_vercel = bool(os.environ.get('VERCEL'))
+        logger.info(f"Environment: {'Vercel' if is_vercel else 'Local'}")
+        
+        if is_vercel:
+            # В среде Vercel используем API Vercel Blob Storage
+            return save_to_vercel_blob(schedule_data)
+        else:
+            # В локальной среде сохраняем в локальный файл
+            return save_to_local_file(schedule_data)
+            
+    except Exception as e:
+        logger.error(f"Unexpected error in save_schedule: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
+def save_to_local_file(schedule_data):
+    """Сохраняет расписание в локальный файл"""
+    try:
+        logger.info("Saving schedule to local file...")
+        
+        # Сохраняем расписание в файл schedule.json
+        with open('schedule.json', 'w', encoding='utf-8') as f:
+            json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+            
+        logger.info("Schedule successfully saved to local file")
+        
+        # При локальной разработке дополнительно делаем копию в public директорию, если она существует
+        if os.path.exists('static'):
+            with open('static/schedule.json', 'w', encoding='utf-8') as f:
+                json.dump(schedule_data, f, ensure_ascii=False, indent=2)
+            logger.info("Schedule copied to static directory")
+            
+        return jsonify({"success": True, "saved_to": "local_file"}), 200
+        
+    except Exception as e:
+        logger.error(f"Error saving to local file: {str(e)}")
+        return jsonify({"error": f"Failed to save file locally: {str(e)}"}), 500
+
+def save_to_vercel_blob(schedule_data):
+    """Сохраняет расписание в Vercel Blob Storage"""
+    try:
         # Проверяем, что переменные окружения установлены
         if not BLOB_READ_WRITE_TOKEN:
             logger.error("BLOB_READ_WRITE_TOKEN is not set")
@@ -115,46 +156,69 @@ def save_schedule():
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
             
-        # Convert data to JSON string and encode to bytes
-        json_data = json.dumps(schedule_data).encode()
-        
-        # Используем правильный формат ID хранилища (без префикса store_ и в нижнем регистре)
-        store_id = BLOB_STORE_ID.replace('store_', '').lower()
+        # Convert data to JSON string
+        json_data = json.dumps(schedule_data)
         
         try:
-            # Отправляем файл напрямую через put запрос к AWS S3 вместо использования API presigned URL
-            logger.info(f"Uploading directly to Vercel Blob Storage public URL: https://{store_id}.public.blob.vercel-storage.com/schedule.json")
+            # Упрощенный подход к работе с Vercel Blob
+            # Используем очищенный ID хранилища (без префикса store_)
+            store_id = BLOB_STORE_ID.replace('store_', '')
+            logger.info(f"Using storeId: {store_id}")
             
-            headers = {
-                "Content-Type": "application/json",
-                "x-content-type": "application/json",
-                "x-vercel-blob-store-id": store_id,
-                "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
+            # Формируем метаданные для загрузки
+            metadata = {
+                "pathname": "schedule.json",
+                "contentType": "application/json",
+                "access": "public"
             }
             
-            # Прямой PUT запрос в AWS S3
-            upload_response = requests.put(
-                f"https://{store_id}.public.blob.vercel-storage.com/schedule.json",
+            # Выполняем запрос к API для прямой загрузки
+            upload_url = f"https://blob.vercel-storage.com/upload?storeId={store_id}"
+            logger.info(f"Uploading directly to: {upload_url}")
+            
+            headers = {
+                "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}",
+                "Content-Type": "application/octet-stream",
+                "X-Vercel-Blob-Metadata": json.dumps(metadata)
+            }
+            
+            # Отправляем данные расписания
+            response = requests.post(
+                upload_url,
                 headers=headers,
-                data=json_data,
-                timeout=30
+                data=json_data.encode(),
+                timeout=60
             )
             
-            logger.info(f"Upload response status: {upload_response.status_code}")
+            logger.info(f"Upload response status: {response.status_code}")
+            logger.info(f"Upload response body: {response.text}")
             
-            if upload_response.status_code not in [200, 201]:
-                logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
-                return jsonify({"error": "Failed to upload file"}), 500
-                
-            logger.info("Schedule successfully saved")
-            return jsonify({"success": True}), 200
+            if response.status_code != 200:
+                logger.error(f"Failed to upload to Vercel Blob: {response.text}")
+                # Если Vercel не работает, пробуем сохранить локально как запасной вариант
+                try:
+                    logger.info("Attempting local file save as fallback...")
+                    return save_to_local_file(schedule_data)
+                except:
+                    return jsonify({"error": "Failed to upload to Vercel Blob"}), 500
+            
+            # Успешный ответ от API
+            response_data = response.json()
+            logger.info(f"File uploaded successfully: {response_data.get('url')}")
+            
+            return jsonify({"success": True, "saved_to": "vercel_blob"}), 200
             
         except requests.exceptions.RequestException as e:
             logger.error(f"Request exception during save: {str(e)}")
-            return jsonify({"error": f"Network error: {str(e)}"}), 500
+            # Пробуем сохранить локально при ошибке сети
+            try:
+                logger.info("Attempting local file save due to network error...")
+                return save_to_local_file(schedule_data)
+            except:
+                return jsonify({"error": f"Network error: {str(e)}"}), 500
             
     except Exception as e:
-        logger.error(f"Unexpected error in save_schedule: {str(e)}")
+        logger.error(f"Unexpected error in save_to_vercel_blob: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 @app.route('/api/check-blob-config')
