@@ -115,69 +115,44 @@ def save_schedule():
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
             
-        # Convert data to JSON string and encode to bytes
-        json_data = json.dumps(schedule_data).encode()
+        # Вместо создания файла на диске, передаем данные через stdin
+        import subprocess
+        import json
         
-        # Используем правильный формат ID хранилища (без префикса store_ и в нижнем регистре)
-        store_id = BLOB_STORE_ID.replace('store_', '').lower()
+        logger.info("Executing Node.js script to upload the schedule")
         
-        # Create a request to Vercel Blob API
-        headers = {
-            "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
-        }
+        # Преобразуем данные в JSON строку
+        json_data = json.dumps(schedule_data)
         
         try:
-            # Get a presigned URL
-            logger.info("Getting presigned URL for upload")
-            presigned_url_response = requests.post(
-                "https://blob.vercel-storage.com/post-url",
-                headers=headers,
-                json={
-                    "size": len(json_data),
-                    "contentType": "application/json",
-                    "storeId": store_id,  # Используем правильный формат ID хранилища
-                    "pathname": "schedule.json",
-                    "access": "public",
-                    "addRandomSuffix": False
-                },
-                timeout=10
+            # Вызываем Node.js скрипт и передаем данные через stdin
+            process = subprocess.Popen(
+                ['node', 'save_schedule_from_stdin.js'],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True  # Работаем с текстом, а не с байтами
             )
             
-            # Добавлем больше логов для отладки
-            logger.info(f"Presigned URL Response Status: {presigned_url_response.status_code}")
-            logger.info(f"Presigned URL Response: {presigned_url_response.text}")
+            # Передаем данные в stdin скрипта и получаем вывод
+            stdout, stderr = process.communicate(input=json_data, timeout=30)
             
-            if presigned_url_response.status_code != 200:
-                logger.error(f"Failed to get presigned URL: {presigned_url_response.status_code} - {presigned_url_response.text}")
-                return jsonify({"error": "Failed to get upload URL"}), 500
-            
-            presigned_data = presigned_url_response.json()
-            
-            if "url" not in presigned_data:
-                logger.error(f"URL not found in presigned data: {presigned_data}")
-                return jsonify({"error": "Failed to get upload URL"}), 500
-            
-            # Upload the file to the presigned URL
-            logger.info(f"Uploading file to presigned URL: {presigned_data['url']}")
-            upload_response = requests.put(
-                presigned_data["url"],
-                data=json_data,
-                headers={
-                    "Content-Type": "application/json"
-                },
-                timeout=10
-            )
-            
-            if upload_response.status_code != 200:
-                logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
+            if process.returncode != 0:
+                logger.error(f"Node.js script failed: {stderr}")
                 return jsonify({"error": "Failed to upload file"}), 500
                 
+            logger.info(f"Node.js script output: {stdout}")
+            
             logger.info("Schedule successfully saved")
             return jsonify({"success": True}), 200
             
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Request exception during save: {str(e)}")
-            return jsonify({"error": f"Network error: {str(e)}"}), 500
+        except subprocess.TimeoutExpired:
+            process.kill()
+            logger.error("Node.js script timed out")
+            return jsonify({"error": "Upload timeout"}), 500
+        except Exception as e:
+            logger.error(f"Error executing Node.js script: {str(e)}")
+            return jsonify({"error": f"Script error: {str(e)}"}), 500
             
     except Exception as e:
         logger.error(f"Unexpected error in save_schedule: {str(e)}")
