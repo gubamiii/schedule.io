@@ -115,44 +115,43 @@ def save_schedule():
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
             
-        # Вместо создания файла на диске, передаем данные через stdin
-        import subprocess
-        import json
+        # Convert data to JSON string and encode to bytes
+        json_data = json.dumps(schedule_data).encode()
         
-        logger.info("Executing Node.js script to upload the schedule")
-        
-        # Преобразуем данные в JSON строку
-        json_data = json.dumps(schedule_data)
+        # Используем правильный формат ID хранилища (без префикса store_ и в нижнем регистре)
+        store_id = BLOB_STORE_ID.replace('store_', '').lower()
         
         try:
-            # Вызываем Node.js скрипт и передаем данные через stdin
-            process = subprocess.Popen(
-                ['node', 'save_schedule_from_stdin.js'],
-                stdin=subprocess.PIPE,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True  # Работаем с текстом, а не с байтами
+            # Отправляем файл напрямую через put запрос к AWS S3 вместо использования API presigned URL
+            logger.info(f"Uploading directly to Vercel Blob Storage public URL: https://{store_id}.public.blob.vercel-storage.com/schedule.json")
+            
+            headers = {
+                "Content-Type": "application/json",
+                "x-content-type": "application/json",
+                "x-vercel-blob-store-id": store_id,
+                "Authorization": f"Bearer {BLOB_READ_WRITE_TOKEN}"
+            }
+            
+            # Прямой PUT запрос в AWS S3
+            upload_response = requests.put(
+                f"https://{store_id}.public.blob.vercel-storage.com/schedule.json",
+                headers=headers,
+                data=json_data,
+                timeout=30
             )
             
-            # Передаем данные в stdin скрипта и получаем вывод
-            stdout, stderr = process.communicate(input=json_data, timeout=30)
+            logger.info(f"Upload response status: {upload_response.status_code}")
             
-            if process.returncode != 0:
-                logger.error(f"Node.js script failed: {stderr}")
+            if upload_response.status_code not in [200, 201]:
+                logger.error(f"Failed to upload file: {upload_response.status_code} - {upload_response.text}")
                 return jsonify({"error": "Failed to upload file"}), 500
                 
-            logger.info(f"Node.js script output: {stdout}")
-            
             logger.info("Schedule successfully saved")
             return jsonify({"success": True}), 200
             
-        except subprocess.TimeoutExpired:
-            process.kill()
-            logger.error("Node.js script timed out")
-            return jsonify({"error": "Upload timeout"}), 500
-        except Exception as e:
-            logger.error(f"Error executing Node.js script: {str(e)}")
-            return jsonify({"error": f"Script error: {str(e)}"}), 500
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Request exception during save: {str(e)}")
+            return jsonify({"error": f"Network error: {str(e)}"}), 500
             
     except Exception as e:
         logger.error(f"Unexpected error in save_schedule: {str(e)}")
