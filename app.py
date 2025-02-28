@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import json
 import requests
 import logging
+from flask_cors import CORS
 
 # Настройка логирования
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -12,6 +13,7 @@ logger = logging.getLogger(__name__)
 load_dotenv()
 
 app = Flask(__name__)
+CORS(app)  # Включаем CORS для всех маршрутов
 
 BLOB_READ_WRITE_TOKEN = os.getenv("BLOB_READ_WRITE_TOKEN")
 BLOB_STORE_ID = os.getenv("BLOB_STORE_ID")
@@ -97,8 +99,9 @@ def get_schedule():
             logger.error("BLOB_STORE_ID is not set")
             return jsonify({"error": "Storage configuration error"}), 500
         
-        # Формируем публичный URL
-        public_url = f"https://{BLOB_STORE_ID}.public.blob.vercel-storage.com/schedule.json"
+        # Формируем публичный URL (приводим Store ID к нижнему регистру)
+        store_id = BLOB_STORE_ID.lower()
+        public_url = f"https://{store_id}.public.blob.vercel-storage.com/schedule.json"
         logger.info(f"Fetching from: {public_url}")
         
         # Получаем данные из публичного URL
@@ -120,8 +123,11 @@ def get_schedule():
                 data = response.json()
                 logger.info("Successfully fetched and parsed schedule data")
                 
-                # Возвращаем данные напрямую
-                return jsonify(data)
+                # Возвращаем данные напрямую с CORS заголовками
+                response = jsonify(data)
+                response.headers.add('Access-Control-Allow-Origin', '*')
+                response.headers.add('Cache-Control', 'public, max-age=300')  # кэшировать на 5 минут
+                return response
                 
             except Exception as e:
                 logger.error(f"Error parsing JSON: {str(e)}")
