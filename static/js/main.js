@@ -36,11 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
     { week: 1, start: "2025-02-08", end: "2025-02-17" },
     { week: 2, start: "2025-02-17", end: "2025-02-22" },
     { week: 3, start: "2025-02-23", end: "2025-02-29" },
-    { week: 4, start: "2025-03-29", end: "2025-03-08" },
+    { week: 4, start: "2025-03-01", end: "2025-03-08" },
     { week: 5, start: "2025-03-09", end: "2025-03-15" },
-    { week: 6, start: "2025-03-15", end: "2025-03-22" },
+    { week: 6, start: "2025-03-16", end: "2025-03-22" },
     { week: 7, start: "2025-03-23", end: "2025-03-29" },
-    { week: 8, start: "2025-03-28", end: "2025-04-05" },
+    { week: 8, start: "2025-03-30", end: "2025-04-05" },
     { week: 9, start: "2025-04-06", end: "2025-04-12" },
     { week: 10, start: "2025-04-13", end: "2025-04-19" },
     { week: 11, start: "2025-04-20", end: "2025-04-26" },
@@ -66,6 +66,12 @@ function getCurrentWeek() {
     return 1;
 }
 
+// Определение четности/нечетности недели
+function getParityWeek(weekNumber) {
+    // Если неделя четная, возвращаем "2" (четная), иначе "1" (нечетная)
+    return weekNumber % 2 === 0 ? "2" : "1";
+}
+
 // Устанавливаем текущую неделю при загрузке
 currentWeek = getCurrentWeek();
 
@@ -76,10 +82,6 @@ currentWeek = getCurrentWeek();
         
         scheduleData = await response.json();
         console.log('Загруженные данные:', scheduleData); 
-        
-        if (!scheduleData[currentWeek]) {
-          console.warn(`Нет данных для недели ${currentWeek}`);
-        }
         
         renderTable(currentWeek);
       } catch (error) {
@@ -92,10 +94,14 @@ currentWeek = getCurrentWeek();
     function renderTable(week) {
       const table = document.getElementById("schedule-table");
       table.innerHTML = ""; // Очищаем таблицу
+      
+      // Определяем четность/нечетность недели для выбора расписания
+      const parityWeek = getParityWeek(week);
+      console.log(`Неделя ${week}, Четность: ${parityWeek === "2" ? "четная" : "нечетная"}`);
 
-      if (!scheduleData || !scheduleData[week]) {
+      if (!scheduleData || !scheduleData[parityWeek]) {
         table.innerHTML = "<tr><td>Нет данных для этой недели</td></tr>";
-        console.error('Данные для недели', week, 'не найдены');
+        console.error('Данные для недели c четностью', parityWeek, 'не найдены');
         return;
       }
       // Создаем тело таблицы
@@ -105,7 +111,7 @@ currentWeek = getCurrentWeek();
       const daysOrder = ["Понедельник", "Вторник", "Среда", "Четверг", "Пятница", "Суббота"];
       
       daysOrder.forEach(day => {
-        if (!scheduleData[week][day]) return;
+        if (!scheduleData[parityWeek][day]) return;
 
         // Заголовок дня
         const dayRow = document.createElement("tr");
@@ -117,7 +123,7 @@ currentWeek = getCurrentWeek();
         tbody.appendChild(dayRow);
 
         // Уроки дня
-        scheduleData[week][day].forEach((lessonText, index) => {
+        scheduleData[parityWeek][day].forEach((lessonText, index) => {
           const [time, subject] = lessonText.split(" | ");
           
           const lessonRow = document.createElement("tr");
@@ -134,7 +140,7 @@ currentWeek = getCurrentWeek();
           if (isEditMode) {
             subjectCell.style.backgroundColor = "#fff3cd";
             subjectCell.addEventListener("input", (e) => {
-              scheduleData[week][day][index] = `${time} | ${e.target.textContent}`;
+              scheduleData[parityWeek][day][index] = `${time} | ${e.target.textContent}`;
             });
           }
 
@@ -144,8 +150,9 @@ currentWeek = getCurrentWeek();
         });
       });
 
-      // Обновление отображения текущей недели
-      document.getElementById("currentWeekDisplay").textContent = `Неделя ${week}`;
+      // Обновление отображения текущей недели и добавление информации о четности
+      const parityText = parityWeek === "2" ? "четная" : "нечетная";
+      document.getElementById("currentWeekDisplay").textContent = `Неделя ${week} (${parityText})`;
       document.getElementById("prevWeek").disabled = (week === 1);
       document.getElementById("nextWeek").disabled = (week === totalWeeks);
       
@@ -198,16 +205,24 @@ currentWeek = getCurrentWeek();
     // Добавляем обработчик сохранения
     document.getElementById("saveBtn").addEventListener("click", async function() {
       try {
-        const response = await fetch("/save", {
+        const response = await fetch(saveUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(scheduleData),
+          body: JSON.stringify({
+            password: EDIT_PASSWORD,
+            schedule: scheduleData
+          }),
         });
         
         if (response.ok) {
-          alert("Изменения успешно сохранены!");
+          const result = await response.json();
+          if (result.success) {
+            alert("Изменения успешно сохранены!");
+          } else {
+            alert(`Ошибка при сохранении: ${result.error || "неизвестная ошибка"}`);
+          }
         } else {
           alert("Ошибка при сохранении!");
         }
