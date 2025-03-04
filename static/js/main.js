@@ -9,6 +9,38 @@ document.addEventListener('DOMContentLoaded', () => {
     let isEditMode = false;
     const EDIT_PASSWORD = flaskData.dataset.editPassword;
 
+    // Инициализация темной темы
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    initTheme();
+
+    // Функция инициализации темы
+    function initTheme() {
+        // Проверяем сохраненную тему в localStorage
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            document.body.classList.add('dark-theme');
+            themeToggleBtn.textContent = '☀️';
+        } else {
+            document.body.classList.remove('dark-theme');
+            themeToggleBtn.textContent = '🌙';
+        }
+    }
+
+    // Обработчик клика на кнопку переключения темы
+    themeToggleBtn.addEventListener('click', () => {
+        // Переключаем класс темной темы
+        document.body.classList.toggle('dark-theme');
+        
+        // Сохраняем состояние в localStorage
+        if (document.body.classList.contains('dark-theme')) {
+            localStorage.setItem('theme', 'dark');
+            themeToggleBtn.textContent = '☀️';
+        } else {
+            localStorage.setItem('theme', 'light');
+            themeToggleBtn.textContent = '🌙';
+        }
+    });
+
     function updateProgressBar() {
         const progressFill = document.getElementById("progress-fill");
         const progressText = document.getElementById("progress-text");

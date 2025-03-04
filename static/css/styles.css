@@ -4,6 +4,7 @@ body {
     margin: 0;
     padding: 20px;
     color: #333;
+    transition: background-color 0.3s, color 0.3s;
   }
   
   .container {
@@ -12,12 +13,14 @@ body {
     margin: 0 auto;
     background: #fff;
     padding: 20px;
-    border-radius: 10px;
+    border-radius: 20px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s, box-shadow 0.3s;
   }
   
   h1 {
     text-align: center;
+    margin-top: 30px;
     margin-bottom: 20px;
   }
   
@@ -34,8 +37,10 @@ body {
     border: none;
     background-color: #007bff;
     color: #fff;
-    border-radius: 4px;
+    border-radius: 20px;
     cursor: pointer;
+    font-size: 16px;
+    font-weight: 500;
   }
   
   .week-navigation button:disabled {
@@ -48,7 +53,7 @@ body {
     border-collapse: separate;
     border-spacing: 0;
     margin: 20px 0;
-    border-radius: 8px;
+    border-radius: 10px;
     overflow: hidden;
     border: 1px solid #e0e0e0;
   }
@@ -139,16 +144,12 @@ body {
   font-size: 14px;
 }
 .login-btn {
-  position: absolute;
-  top: 10px;
-  right: 20px;
   padding: 10px 20px;
   background-color: #007bff;
   color: rgb(0, 0, 0);
   border: none;
-  border-radius: 5px;
+  border-radius: 10px;
   cursor: pointer;
-  z-index: 1000;
   transition: background-color 0.3s;
 }
 
@@ -178,6 +179,100 @@ body {
 }
 
 .save-btn:disabled {
-  background-color: #6c757d;
+  background-color: #aaa;
   cursor: not-allowed;
+}
+
+/* Стили для темной темы */
+body.dark-theme {
+    background-color: #222;
+    color: rgb(255, 255, 255);
+}
+
+body.dark-theme .container {
+    background-color: #333;
+    box-shadow: 0 2px 4px rgba(255, 255, 255, 0.1);
+}
+
+body.dark-theme table {
+    border-color: #878787;
+}
+
+body.dark-theme th, 
+body.dark-theme td {
+    border-color: #555;
+}
+
+body.dark-theme th {
+    background-color: #444;
+}
+
+body.dark-theme tr:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-theme .login-btn,
+body.dark-theme .save-btn {
+    background-color: #1a73e8;
+    color: white;
+}
+
+body.dark-theme .login-btn:hover,
+body.dark-theme .save-btn:hover {
+    background-color: #0d5bba;
+}
+
+body.dark-theme .week-navigation button {
+    background-color: #1a73e8;
+}
+
+body.dark-theme .week-navigation button:disabled {
+    background-color: #555;
+}
+
+body.dark-theme .progress-bar {
+    background-color: #444;
+    border-color: #555;
+}
+
+body.dark-theme [contenteditable="true"] {
+    background-color: #444;
+}
+
+body.dark-theme .day-header {
+    color: #000;
+}
+
+/* Стили для кнопок в верхней части */
+.top-buttons {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 8px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+}
+
+.theme-btn {
+    padding: 9px 20px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s;
+}
+
+.theme-btn:hover {
+    background-color: #0056b3;
+}
+
+body.dark-theme .login-btn:focus, 
+body.dark-theme .save-btn:focus, 
+body.dark-theme .theme-btn:focus, 
+body.dark-theme .week-navigation button:focus {
+  box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.5);
 }
