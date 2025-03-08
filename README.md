@@ -14,5 +14,5 @@ A web application for convenient viewing of class schedules, hosted on the Verce
 - Hosted on Vercel
 
 ## Demo:
-You can view a live demo [here](https://schedule-io.vercel.app).
+You can view a live demo [here](https://rsischedule.vercel.app/).
 
